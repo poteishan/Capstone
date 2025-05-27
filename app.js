@@ -312,6 +312,80 @@ function createNoteElement(note, folder) {
         contentElement.addEventListener('blur', onBlur);
     }
 
+    // Add to createNoteElement function
+if (note.float) {
+    noteEl.classList.add('float');
+    makeDraggable(noteEl, note);
+}
+
+function makeDraggable(element, note) {
+    let isDragging = false;
+    let currentX = 0;
+    let currentY = 0;
+    let initialX = 0;
+    let initialY = 0;
+    let xOffset = 0;
+    let yOffset = 0;
+
+    element.addEventListener('mousedown', dragStart);
+    document.addEventListener('mousemove', drag);
+    document.addEventListener('mouseup', dragEnd);
+
+    function dragStart(e) {
+        initialX = e.clientX - xOffset;
+        initialY = e.clientY - yOffset;
+        
+        if (e.target === element) {
+            isDragging = true;
+            element.classList.add('noselect');
+        }
+    }
+
+    function drag(e) {
+        if (isDragging) {
+            e.preventDefault();
+            currentX = e.clientX - initialX;
+            currentY = e.clientY - initialY;
+            
+            xOffset = currentX;
+            yOffset = currentY;
+            
+            setTranslate(currentX, currentY, element);
+        }
+    }
+
+    function dragEnd(e) {
+        initialX = currentX;
+        initialY = currentY;
+        isDragging = false;
+        element.classList.remove('noselect');
+        
+        // Save position
+        note.floatPosition = {
+            x: currentX,
+            y: currentY
+        };
+        saveData();
+    }
+
+    function setTranslate(xPos, yPos, el) {
+        el.style.left = xPos + 'px';
+        el.style.top = yPos + 'px';
+    }
+
+    // Set initial position
+    if (note.floatPosition) {
+        setTranslate(note.floatPosition.x, note.floatPosition.y, element);
+    }
+}
+
+    function toggleFloat(note) {
+        note.float = !note.float;
+        note.floatPosition = note.float ? { x: 50, y: 50 } : null;
+        saveData();
+        renderNotes();
+    }
+
     // Add dropdown menu
     const dropdownContainer = document.createElement('div');
     dropdownContainer.className = 'note-dropdown';
@@ -333,7 +407,10 @@ function createNoteElement(note, folder) {
             text: 'Expand',
             action: () => showExpandedNote(note)
         },
-        // { text: "Make it Float"}
+        {
+            text: note.float ? 'Unfloat' : 'Float',
+            action: () => toggleFloat(note)
+        },
     ];
 
     menuItems.forEach(item => {
@@ -366,6 +443,15 @@ function createNoteElement(note, folder) {
 
     return noteEl;
 }
+
+// In new note creation:
+const newNote = {
+  // ... existing properties
+  float: false,
+  floatPosition: null,
+  todos: [], // Add empty array initialization
+  bulletPoints: [] // Add empty array initialization
+};
 
 
 // Convert RGB color to hex color string if needed
@@ -421,9 +507,9 @@ addNoteBtn.onclick = () => {
 function showExpandedNote(note, folder) {
     const overlay = document.createElement('div');
     overlay.className = 'expanded-overlay';
-    
+
     const tempNote = JSON.parse(JSON.stringify(note));
-    
+
     const content = document.createElement('div');
     content.className = 'expanded-content';
     content.innerHTML = `
@@ -475,7 +561,7 @@ function showExpandedNote(note, folder) {
         note.content = contentInput.value;
         note.bulletPoints = parseBulletPoints(contentInput.value);
         note.todos = parseTodos(contentInput.value);
-        
+
         saveData();
         renderNotes();
         overlay.remove();
@@ -495,8 +581,8 @@ function showExpandedNote(note, folder) {
 function insertAtCursor(textarea, text) {
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
-    textarea.value = textarea.value.substring(0, start) + text + 
-                     textarea.value.substring(end);
+    textarea.value = textarea.value.substring(0, start) + text +
+        textarea.value.substring(end);
     textarea.focus();
     textarea.selectionStart = textarea.selectionEnd = start + text.length;
 }
@@ -505,9 +591,9 @@ function wrapSelection(textarea, prefix, suffix) {
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const selected = textarea.value.substring(start, end);
-    textarea.value = textarea.value.substring(0, start) + 
-                    prefix + selected + suffix + 
-                    textarea.value.substring(end);
+    textarea.value = textarea.value.substring(0, start) +
+        prefix + selected + suffix +
+        textarea.value.substring(end);
     textarea.focus();
     textarea.selectionStart = start + prefix.length;
     textarea.selectionEnd = end + prefix.length;
@@ -516,7 +602,7 @@ function wrapSelection(textarea, prefix, suffix) {
 function parseContent(html) {
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = html;
-    
+
     return Array.from(tempDiv.querySelectorAll('h3, p, li'))
         .map(el => {
             if (el.tagName === 'H3') return `## ${el.textContent}`;
@@ -556,11 +642,11 @@ function addFormattingHandlers(container, contentEl) {
     container.querySelector('.bullet').onclick = () => {
         insertAtCursor('\n- ', contentEl);
     };
-    
+
     container.querySelector('.todo').onclick = () => {
         insertAtCursor('\n☐ ', contentEl);
     };
-    
+
     container.querySelector('.bold').onclick = () => {
         wrapSelection('**', '**', contentEl);
     };
@@ -571,16 +657,16 @@ function formatEditableContent(note) {
     return `
         <div class="content-section">
             ${note.content.split('\n').map(line => {
-                if (line.startsWith('## ')) 
-                    return `<h3 contenteditable="true">${line.replace('## ', '')}</h3>`;
-                if (line.startsWith('- [ ] ')) 
-                    return `<li class="todo-item" contenteditable="false">
+        if (line.startsWith('## '))
+            return `<h3 contenteditable="true">${line.replace('## ', '')}</h3>`;
+        if (line.startsWith('- [ ] '))
+            return `<li class="todo-item" contenteditable="false">
                               <input type="checkbox"> ${line.replace('- [ ] ', '')}
                             </li>`;
-                if (line.startsWith('- ')) 
-                    return `<li contenteditable="true">${line.replace('- ', '')}</li>`;
-                return `<p contenteditable="true">${line}</p>`;
-            }).join('')}
+        if (line.startsWith('- '))
+            return `<li contenteditable="true">${line.replace('- ', '')}</li>`;
+        return `<p contenteditable="true">${line}</p>`;
+    }).join('')}
         </div>
         ${note.bulletPoints.length ? `
         <div class="bullet-section">
@@ -605,7 +691,7 @@ function handleContentChange(note, event) {
     if (target.matches('h3')) {
         // Update headers
         const lineIndex = Array.from(target.parentNode.children).indexOf(target);
-        note.content = note.content.split('\n').map((line, idx) => 
+        note.content = note.content.split('\n').map((line, idx) =>
             idx === lineIndex ? `## ${target.textContent}` : line
         ).join('\n');
     } else if (target.matches('li')) {
@@ -615,18 +701,18 @@ function handleContentChange(note, event) {
         if (list.closest('.bullet-section')) {
             note.bulletPoints[index] = target.textContent;
         } else {
-            note.content = note.content.split('\n').map((line, idx) => 
+            note.content = note.content.split('\n').map((line, idx) =>
                 line.startsWith('- ') && idx === index ? `- ${target.textContent}` : line
             ).join('\n');
         }
     } else {
         // Update regular paragraphs
         const lineIndex = Array.from(target.parentNode.children).indexOf(target);
-        note.content = note.content.split('\n').map((line, idx) => 
+        note.content = note.content.split('\n').map((line, idx) =>
             idx === lineIndex ? target.textContent : line
         ).join('\n');
     }
-    
+
     // Update sticky note content in real-time
     const stickyNote = document.querySelector(`[aria-label="Note titled ${note.title}"]`);
     if (stickyNote) {
@@ -637,7 +723,7 @@ function handleContentChange(note, event) {
 function wrapSelection(prefix, suffix, element) {
     const sel = window.getSelection();
     if (!sel.rangeCount) return;
-    
+
     const range = sel.getRangeAt(0);
     const text = range.extractContents();
     const span = document.createElement('span');
