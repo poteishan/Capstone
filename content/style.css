@@ -1,0 +1,55 @@
+
+.floating-note {
+    position: fixed;
+    z-index: 2147483647; /* Maximum possible z-index */
+    width: 300px;
+    min-height: 200px;
+    background: #fff9c4;
+    border: 2px solid #ffeb3b;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    font-family: Arial, sans-serif;
+}
+
+.note-header {
+    padding: 8px;
+    display: flex;
+    justify-content: space-between;
+    border-radius: 6px 6px 0 0;
+    cursor: move;
+}
+
+.note-content {
+    margin-left: 3px;
+    width: 290px;
+    min-height: 210px;
+    padding: 12px;
+    outline: none;
+    overflow-y: auto;
+}
+
+button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 8px;
+}
+
+button:hover {
+    background: rgba(0,0,0,0.1);
+    border-radius: 4px;
+}
+
+.floating-note.dragging {
+    cursor: grabbing;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+    transition: none;
+}
+
+.note-header {
+    cursor: grab;
+}
+
+.note-header:active {
+    cursor: grabbing;
+}

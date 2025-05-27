@@ -1,0 +1,25 @@
+{
+    "manifest_version": 3,
+    "name": "Noteext",
+    "version": "1.0",
+    "description": "Take notes while browsing research papers",
+    "icons": {
+        "128": "icons/icon128.png"
+    },
+    "permissions": ["storage", "activeTab", "scripting"],
+    "action": {
+        "default_icon": "icons/icon128.png",
+        "default_popup": "popup/popup.html"
+    },
+    "content_scripts": [{
+        "matches": ["<all_urls>"],
+        "js": ["content/content.js"],
+        "css": ["content/style.css"],
+        "run_at": "document_end"
+    }],
+    "web_accessible_resources": [{
+        "resources": ["content/style.css"],
+        "matches": ["<all_urls>"]
+    }]
+    
+}

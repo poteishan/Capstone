@@ -1,0 +1,63 @@
+.floating-note {
+    position: fixed;
+    z-index: 2147483647;
+    width: 300px;
+    min-height: 200px;
+    background: #fff9c4;
+    border: 2px solid #ffeb3b;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    font-family: Arial, sans-serif;
+}
+
+.note-header {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    background: #ffeb3b;
+    border-radius: 6px 6px 0 0;
+    cursor: move;
+}
+
+.note-title {
+    flex-grow: 1;
+    background: transparent;
+    border: none;
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin: 0 8px;
+    padding: 4px;
+    outline: none;
+    color: #333;
+    min-width: 120px;
+}
+
+.note-title:focus {
+    border-bottom: 2px dashed #d4b100;
+}
+
+.close-btn {
+    background: #ff5252;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.note-content {
+    padding: 12px;
+    min-height: 150px;
+    outline: none;
+    overflow-y: auto;
+}
+
+.noselect {
+    user-select: none;
+    -webkit-user-select: none;
+}
