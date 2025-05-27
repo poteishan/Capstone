@@ -821,3 +821,21 @@
 .expanded-overlay {
     z-index: 9999;
 }
+
+/* Floating Note Styles */
+.sticky-note.float {
+    position: fixed;
+    z-index: 99999;
+    cursor: move;
+    resize: both;
+    overflow: auto;
+    min-width: 200px;
+    min-height: 150px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.3);
+}
+
+/* Prevent text selection while dragging */
+.sticky-note.float.noselect {
+    user-select: none;
+    -webkit-user-select: none;
+}
