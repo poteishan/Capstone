@@ -1,6 +1,6 @@
 {
     "manifest_version": 3,
-    "name": "Noteext",
+    "name": "NoteExt",
     "version": "1.0",
     "description": "Take notes while browsing research papers",
     "icons": {
