@@ -87,7 +87,7 @@ function showToast(message) {
     toast.className = 'toast';
     toast.textContent = message;
     document.body.appendChild(toast);
-    
+
     setTimeout(() => {
         if (toast.parentNode) {
             toast.parentNode.removeChild(toast);
@@ -864,48 +864,42 @@ function init() {
 
 // Handle messages from extension
 window.addEventListener('message', (event) => {
-    // Only accept messages from our extension
-    if (event.data && event.data.source === 'sticky-notes-extension') {
-        if (event.data.action === 'SAVE_NOTE') {
-            saveExtensionNote(event.data.note);
-        }
+    if (event.data && event.data.source === 'sticky-notes-extension' &&
+        event.data.action === 'SAVE_NOTE') {
+        saveExtensionNote(event.data.note);
     }
 });
 
 function saveExtensionNote(noteData) {
-    // Only process if we're on the correct domain
     if (window.location.origin !== "https://capstone-sigma-eight.vercel.app") {
         console.warn("Note saving only works on the app domain");
         return;
     }
-    
-    const folder = ensureFloatingNotesFolder();
-    
-    const newNote = {
-        id: generateId('note'),
-        title: noteData.title || 'Floating Note',
-        content: noteData.content || '',
-        color: '#fffb82',
-        created: new Date().toISOString(),
-        liked: false,
-        todos: [],
-        timer: null,
-        bulletPoints: [],
-        featuresCollapsed: false,
-        float: false,
-        floatPosition: null,
-        isExtensionNote: true
-    };
-    
-    folder.notes.push(newNote);
-    saveData();
-    
-    // Switch to floating notes folder
-    selectedFolderId = folder.id;
-    renderFolders();
-    renderNotes();
-    
-    showToast('Floating note saved!');
+    const folder = getFloatingNotesFolder();
+
+    // Check if note already exists
+    const exists = folder.notes.some(n =>
+        n.originalNoteId === noteData.id
+    );
+
+    if (!exists) {
+        const newNote = {
+            id: generateId('note'),
+            title: noteData.title || 'Floating Note',
+            content: noteData.content || '',
+            color: '#fff9c4',
+            created: new Date().toISOString(),
+            isFloatingNote: true,
+            originalNoteId: noteData.id
+        };
+
+        folder.notes.push(newNote);
+        saveData();
+        selectedFolderId = folder.id;
+        renderFolders();
+        renderNotes();
+        showToast('Floating note saved!');
+    }
 }
 
 function ensureFloatingNotesFolder() {
