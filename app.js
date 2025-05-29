@@ -874,7 +874,7 @@ window.addEventListener('message', (event) => {
 
 function saveExtensionNote(noteData) {
     // Only process if we're on the correct domain
-    if (window.location.origin !== "http://127.0.0.1:3000/index.html") {
+    if (window.location.origin !== "https://capstone-sigma-eight.vercel.app/") {
         console.warn("Note saving only works on the app domain");
         return;
     }
