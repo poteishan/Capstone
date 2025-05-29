@@ -113,7 +113,7 @@ function createFloatingNote(note) {
 
             const shareContent = `📝 ${title}\n📅 ${date}\n\n${contentText}`;
 
-            switch(shareType) {
+            switch (shareType) {
                 case 'whatsapp':
                     shareViaWhatsApp(shareContent);
                     break;
@@ -137,27 +137,35 @@ function createFloatingNote(note) {
     // Fixed: Removed duplicate event listener and added proper save logic
     saveBtn.addEventListener('click', async () => {
         const appIsOpen = await isAppOpen();
-
         if (!appIsOpen) {
             showToast('Please open the Sticky Notes app first');
             return;
         }
 
-        // Send note data to website
-        window.postMessage({
-            source: 'sticky-notes-extension',
-            action: 'SAVE_NOTE',
+        // Send to background instead of postMessage
+        chrome.runtime.sendMessage({
+            action: "saveNoteToApp",
             note: {
                 id: note.id,
                 title: titleInput.value.trim(),
                 content: contentEl.innerText,
                 date: note.date
             }
-        }, '*');
-        
+        });
+
         showToast('Note saved to Floating Notes folder!');
     });
 
+    // Add this to content.js
+    chrome.runtime.onMessage.addListener((message) => {
+        if (message.action === "SAVE_NOTE_FROM_EXTENSION") {
+            window.postMessage({
+                source: 'sticky-notes-extension',
+                action: 'SAVE_NOTE',
+                note: message.note
+            }, '*');
+        }
+    });
     // Drag implementation - fixed version
     let isDragging = false;
     let startX, startY, initialX, initialY;
