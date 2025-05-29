@@ -42,7 +42,7 @@
         }
     ],
     "host_permissions": [
-        "<all_urls>"
+        "https://capstone-sigma-eight.vercel.app/*"
     ],
     "background": {
         "service_worker": "background.js"
