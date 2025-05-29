@@ -1,13 +1,4 @@
-
-// Data structure to hold folders and notes
-// For demonstration, start with one folder and some example notes
-
-function darkMode() {
-    var element = document.body;
-    element.classList.toggle("dark-mode");
-
-}
-
+let FLOATING_NOTES_FOLDER_NAME = "Floating Notes";
 
 let data = [
     {
@@ -42,6 +33,67 @@ let data = [
         ]
     },
 ];
+
+function getFloatingNotesFolder() {
+    let folder = data.find(f => f.name === FLOATING_NOTES_FOLDER_NAME);
+    if (!folder) {
+        folder = {
+            id: generateId('folder'),
+            name: FLOATING_NOTES_FOLDER_NAME,
+            notes: []
+        };
+        data.push(folder);
+        saveData();
+        renderFolders();
+    }
+    return folder;
+}
+
+window.addEventListener('message', (event) => {
+    if (event.data.type === 'FROM_EXTENSION' && event.data.action === 'SAVE_NOTE') {
+        const noteData = event.data.note;
+        const folder = getFloatingNotesFolder();
+
+        // Create website note
+        const websiteNote = {
+            id: generateId('note'),
+            title: noteData.title || 'Floating Note',
+            content: noteData.content || '',
+            color: '#fff9c4',
+            created: new Date().toISOString(),
+            liked: false,
+            todos: [],
+            timer: null,
+            bulletPoints: [],
+            featuresCollapsed: false,
+            isFloatingNote: true,
+            originalNoteId: noteData.id
+        };
+
+        folder.notes.push(websiteNote);
+        saveData();
+
+        // Select and show the floating notes folder
+        selectedFolderId = folder.id;
+        renderFolders();
+        renderNotes();
+
+        showToast(`Saved floating note to "${FLOATING_NOTES_FOLDER_NAME}" folder!`);
+    }
+});
+
+function showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+        }
+    }, 2000);
+}
 
 // Currently selected folder id
 let selectedFolderId = null;
@@ -146,6 +198,9 @@ function renderNotes() {
         folderTitleEl.textContent = 'Select a folder';
         notesContainer.innerHTML = '';
         addNoteBtn.disabled = true;
+        div.className = 'folder-item' +
+            (folder.id === selectedFolderId ? ' active' : '') +
+            (folder.isExtensionFolder ? ' floating-notes' : '');
         return;
     }
     const folder = data.find(f => f.id === selectedFolderId);
@@ -179,10 +234,19 @@ function renderNotes() {
 
 // Create sticky note element
 function createNoteElement(note, folder) {
+
     const noteEl = document.createElement('article');
     noteEl.className = 'sticky-note';
     noteEl.style.backgroundColor = note.color;
     noteEl.setAttribute('aria-label', `Note titled ${note.title}`);
+
+    if (folder.name === FLOATING_NOTES_FOLDER_NAME) {
+        noteEl.classList.add('floating-note-saved');
+        const ribbon = document.createElement('div');
+        ribbon.className = 'floating-note-ribbon';
+        ribbon.textContent = 'Floating Note';
+        noteEl.appendChild(ribbon);
+    }
 
     // Delete button for note top right corner
     const noteDelBtn = document.createElement('button');
@@ -260,7 +324,12 @@ function createNoteElement(note, folder) {
     // Content area (editable)
     const contentEl = document.createElement('div');
     contentEl.className = 'note-content';
-    contentEl.textContent = note.content;
+    const contentParts = [
+        note.content,
+        ...note.todos.map(t => `☐ ${t.text}`),
+        ...note.bulletPoints.map(b => `• ${b}`)
+    ];
+    contentEl.textContent = contentParts.join('\n');
     contentEl.tabIndex = 0;
     contentEl.setAttribute('role', 'textbox');
     contentEl.setAttribute('aria-multiline', 'true');
@@ -279,6 +348,80 @@ function createNoteElement(note, folder) {
 
     noteEl.appendChild(contentEl);
 
+    // Add this code in app.txt (near other utility functions)
+    // Replace existing shareNote and noteToText functions with:
+    function shareNote(note) {
+        const formattedText = noteToText(note);
+
+        if (navigator.share) {
+            navigator.share({
+                title: `Note: ${note.title}`,
+                text: formattedText
+            }).catch(error => {
+                console.log('Sharing failed:', error);
+                copyToClipboardFallback(formattedText);
+            });
+        } else {
+            copyToClipboardFallback(formattedText);
+        }
+    }
+
+    function noteToText(note) {
+        const sections = [];
+
+        // Header
+        sections.push(`📝 ${note.title}`);
+        sections.push('━'.repeat(note.title.length + 2));
+
+        // Main Content
+        if (note.content) sections.push(`\n${note.content}\n`);
+
+        // Todos
+        if (note.todos.length > 0) {
+            sections.push('\n✅ To-Dos:');
+            note.todos.forEach(todo => {
+                sections.push(`▢ ${todo.done ? '✓' : ' '} ${todo.text}`);
+            });
+        }
+
+        // Bullet Points
+        if (note.bulletPoints.length > 0) {
+            sections.push('\n🔹 Key Points:');
+            sections.push(...note.bulletPoints.map(bp => `• ${bp}`));
+        }
+
+        // Metadata
+        sections.push('\n―――――――――――――――――――');
+        sections.push(`🕒 Created: ${formatDateTime(note.created)}`);
+
+        return sections.join('\n');
+    }
+
+    function copyToClipboardFallback(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            showToast('📋 Note copied to clipboard!');
+        }).catch(() => {
+            alert('Could not copy text. Please manually select and copy.');
+        });
+    }
+
+    // Add this utility function
+    function showToast(message) {
+        const toast = document.createElement('div');
+        toast.textContent = message;
+        toast.style.position = 'fixed';
+        toast.style.bottom = '20px';
+        toast.style.left = '50%';
+        toast.style.transform = 'translateX(-50%)';
+        toast.style.background = '#80cbc4';
+        toast.style.color = '#263238';
+        toast.style.padding = '12px 20px';
+        toast.style.borderRadius = '25px';
+        toast.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+        document.body.appendChild(toast);
+
+        setTimeout(() => toast.remove(), 2000);
+    }
 
     // Editing functions
     function enableEditTitle(titleElement, note, folder) {
@@ -312,80 +455,6 @@ function createNoteElement(note, folder) {
         contentElement.addEventListener('blur', onBlur);
     }
 
-    // Add to createNoteElement function
-if (note.float) {
-    noteEl.classList.add('float');
-    makeDraggable(noteEl, note);
-}
-
-function makeDraggable(element, note) {
-    let isDragging = false;
-    let currentX = 0;
-    let currentY = 0;
-    let initialX = 0;
-    let initialY = 0;
-    let xOffset = 0;
-    let yOffset = 0;
-
-    element.addEventListener('mousedown', dragStart);
-    document.addEventListener('mousemove', drag);
-    document.addEventListener('mouseup', dragEnd);
-
-    function dragStart(e) {
-        initialX = e.clientX - xOffset;
-        initialY = e.clientY - yOffset;
-        
-        if (e.target === element) {
-            isDragging = true;
-            element.classList.add('noselect');
-        }
-    }
-
-    function drag(e) {
-        if (isDragging) {
-            e.preventDefault();
-            currentX = e.clientX - initialX;
-            currentY = e.clientY - initialY;
-            
-            xOffset = currentX;
-            yOffset = currentY;
-            
-            setTranslate(currentX, currentY, element);
-        }
-    }
-
-    function dragEnd(e) {
-        initialX = currentX;
-        initialY = currentY;
-        isDragging = false;
-        element.classList.remove('noselect');
-        
-        // Save position
-        note.floatPosition = {
-            x: currentX,
-            y: currentY
-        };
-        saveData();
-    }
-
-    function setTranslate(xPos, yPos, el) {
-        el.style.left = xPos + 'px';
-        el.style.top = yPos + 'px';
-    }
-
-    // Set initial position
-    if (note.floatPosition) {
-        setTranslate(note.floatPosition.x, note.floatPosition.y, element);
-    }
-}
-
-    function toggleFloat(note) {
-        note.float = !note.float;
-        note.floatPosition = note.float ? { x: 50, y: 50 } : null;
-        saveData();
-        renderNotes();
-    }
-
     // Add dropdown menu
     const dropdownContainer = document.createElement('div');
     dropdownContainer.className = 'note-dropdown';
@@ -400,17 +469,13 @@ function makeDraggable(element, note) {
 
     // Dropdown items
     const menuItems = [
-        { text: 'Export', action: () => exportNote(note) },
-        { text: 'Delete', action: () => noteDelBtn.click() },
-        { text: 'Change color', action: () => colorInput.click() },
         {
             text: 'Expand',
             action: () => showExpandedNote(note)
         },
-        {
-            text: note.float ? 'Unfloat' : 'Float',
-            action: () => toggleFloat(note)
-        },
+        { text: 'Share', action: () => shareNote(note) }, // Add this line
+        { text: 'Change color', action: () => colorInput.click() },
+        { text: 'Delete', action: () => noteDelBtn.click() },
     ];
 
     menuItems.forEach(item => {
@@ -445,12 +510,20 @@ function makeDraggable(element, note) {
 }
 
 // In new note creation:
+// Update new note creation
 const newNote = {
-  // ... existing properties
-  float: false,
-  floatPosition: null,
-  todos: [], // Add empty array initialization
-  bulletPoints: [] // Add empty array initialization
+    id: generateId('note'),
+    title: 'Untitled Note',
+    content: '',
+    color: '#fffb82',
+    created: new Date().toISOString(),
+    liked: false,
+    todos: [],
+    timer: null,
+    bulletPoints: [],
+    featuresCollapsed: false,
+    float: false,          // Add this
+    floatPosition: null    // Add this
 };
 
 
@@ -514,7 +587,7 @@ function showExpandedNote(note, folder) {
     content.className = 'expanded-content';
     content.innerHTML = `
         <div class="expanded-header">
-            <textarea class="editable-title" placeholder="Note title">${tempNote.title}</textarea>
+            <textarea class="editable-title" placeholder="Note title" style="height:20px">${tempNote.title}</textarea>
             <button class="close-btn">&times;</button>
         </div>
         <div class="expanded-body">
@@ -615,10 +688,11 @@ function parseContent(html) {
         .join('\n');
 }
 
+// Update parseBulletPoints function:
 function parseBulletPoints(content) {
     return content.split('\n')
-        .filter(line => line.startsWith('- ') && !line.startsWith('- [ ]'))
-        .map(line => line.replace('- ', '').trim());
+        .filter(line => line.match(/^[-•*]\s/))
+        .map(line => line.replace(/^[-•*]\s/, '').trim());
 }
 
 function parseTodos(content) {
@@ -769,16 +843,6 @@ function duplicateNote(note, folder) {
     saveData();
 }
 
-function exportNote(note) {
-    const blob = new Blob([JSON.stringify(note, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${note.title.replace(/ /g, '_')}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-}
-
 function toggleLike(note) {
     note.liked = !note.liked;
     renderNotes();
@@ -788,6 +852,7 @@ function toggleLike(note) {
 // Initialize app - load data if saved
 function init() {
     loadData();
+    ensureFloatingNotesFolder(); // Add this line
     if (data.length > 0) {
         selectedFolderId = data[0].id;
     }
@@ -795,5 +860,68 @@ function init() {
     renderNotes();
 }
 
-window.onload = init;
 
+
+// Handle messages from extension
+window.addEventListener('message', (event) => {
+    // Only accept messages from our extension
+    if (event.data && event.data.source === 'sticky-notes-extension') {
+        if (event.data.action === 'SAVE_NOTE') {
+            saveExtensionNote(event.data.note);
+        }
+    }
+});
+
+function saveExtensionNote(noteData) {
+    // Only process if we're on the correct domain
+    if (window.location.origin !== "http://127.0.0.1:3000/index.html") {
+        console.warn("Note saving only works on the app domain");
+        return;
+    }
+    
+    const folder = ensureFloatingNotesFolder();
+    
+    const newNote = {
+        id: generateId('note'),
+        title: noteData.title || 'Floating Note',
+        content: noteData.content || '',
+        color: '#fffb82',
+        created: new Date().toISOString(),
+        liked: false,
+        todos: [],
+        timer: null,
+        bulletPoints: [],
+        featuresCollapsed: false,
+        float: false,
+        floatPosition: null,
+        isExtensionNote: true
+    };
+    
+    folder.notes.push(newNote);
+    saveData();
+    
+    // Switch to floating notes folder
+    selectedFolderId = folder.id;
+    renderFolders();
+    renderNotes();
+    
+    showToast('Floating note saved!');
+}
+
+function ensureFloatingNotesFolder() {
+    const folderName = "Floating Notes";
+    let folder = data.find(f => f.name === folderName);
+    if (!folder) {
+        folder = {
+            id: generateId('folder'),
+            name: folderName,
+            notes: [],
+            isExtensionFolder: true
+        };
+        data.push(folder);
+        saveData();
+    }
+    return folder;
+}
+
+window.onload = init;
