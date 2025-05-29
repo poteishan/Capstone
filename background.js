@@ -1,5 +1,5 @@
 // Update this line with your actual domain
-const APP_DOMAIN = "http://127.0.0.1:3000/index.html";
+const APP_DOMAIN = "https://capstone-sigma-eight.vercel.app/";
 
 let appTabId = null;
 
