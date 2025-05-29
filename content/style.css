@@ -1,14 +1,31 @@
-
+/* Add to both popupcss.txt and contentstyle.txt */
 .floating-note {
-    position: fixed;
-    z-index: 2147483647; /* Maximum possible z-index */
-    width: 300px;
-    min-height: 200px;
-    background: #fff9c4;
-    border: 2px solid #ffeb3b;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    font-family: Arial, sans-serif;
+    opacity: 0.15;
+    width: 230px;
+    height: 230px;
+    transition: all 0.2s ease-in-out;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+}
+
+.floating-note:hover {
+    opacity: 1;
+    box-shadow: 0 6px 12px rgba(0,0,0,0.2) !important;
+    transform: scale(1.02);
+}
+
+.note-header {
+    transition: background 0.2s ease;
+}
+
+.floating-note:hover .note-header {
+    background: #ffeb3b;
+}
+
+.note-content {
+    width: calc(100% - 24px); /* Adjust for padding */
+    min-height: 180px; /* Account for header height */
+    margin: 0 auto;
+    padding: 12px;
 }
 
 .note-header {
@@ -17,15 +34,6 @@
     justify-content: space-between;
     border-radius: 6px 6px 0 0;
     cursor: move;
-}
-
-.note-content {
-    margin-left: 3px;
-    width: 290px;
-    min-height: 210px;
-    padding: 12px;
-    outline: none;
-    overflow-y: auto;
 }
 
 button {
@@ -52,4 +60,113 @@ button:hover {
 
 .note-header:active {
     cursor: grabbing;
+}
+
+.title-wrapper {
+    flex-grow: 1;
+    margin-right: 8px;
+}
+
+.note-date {
+    font-size: 0.75em;
+    color: #666;
+    margin-top: 2px;
+}
+
+.note-title {
+    width: 100%;
+    background: transparent;
+    border: none;
+    font-weight: bold;
+    font-size: 1.1em;
+    padding: 2px 0;
+    margin: 0;
+}
+
+.note-title:focus {
+    outline: none;
+    border-bottom: 2px dashed #d4b100;
+}
+
+/* Website-specific styling */
+.website-toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #4CAF50;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    z-index: 2147483647;
+}
+
+.note-controls {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.btn-save, .btn-share {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px;
+    opacity: 0.7;
+}
+
+.btn-save:hover, .btn-share:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+/* Floating Notes Folder Style */
+.folder-item.floating-notes {
+    background-color: #fff9c4;
+    border: 2px dashed #ffd54f;
+}
+
+.folder-item.floating-notes.active {
+    background-color: #ffecb3;
+}
+
+/* Extension UI Styling */
+#extension-popup {
+    border-radius: 10px;
+    background: #f5f7fa;
+    z-index: 10000;
+}
+
+#extension-popup button {
+    width: 100%;
+    padding: 10px;
+    font-weight: bold;
+}
+
+#showExtension {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.floating-note-ribbon {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    background: #ffd54f;
+    color: #333;
+    padding: 5px 10px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    transform: rotate(45deg);
+    transform-origin: center;
+    width: 120px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
