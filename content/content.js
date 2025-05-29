@@ -1,84 +1,183 @@
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "createNote") {
-        createFloatingNote(request.content);
+        const noteEl = createFloatingNote(request.note);
+        document.body.appendChild(noteEl);
+        saveNote(request.note);
     }
 });
 
-// Load existing notes on page load
-chrome.storage.local.get(['notes'], ({ notes }) => {
-    notes?.forEach(note => createFloatingNote(note));
+// Check if app is open
+function isAppOpen() {
+    return new Promise((resolve) => {
+        chrome.runtime.sendMessage({ action: "checkAppOpen" }, (response) => {
+            resolve(response && response.isOpen);
+        });
+    });
+}
+
+chrome.storage.local.get(['notes'], ({ notes = [] }) => {
+    notes.forEach(note => {
+        const noteEl = createFloatingNote(note);
+        document.body.appendChild(noteEl);
+    });
 });
 
 function createFloatingNote(note) {
-    // Create note container
     const noteEl = document.createElement('div');
     noteEl.className = 'floating-note';
     noteEl.style.left = `${note.x}px`;
     noteEl.style.top = `${note.y}px`;
     noteEl.dataset.noteId = note.id;
 
-    // Note HTML structure
     noteEl.innerHTML = `
         <div class="note-header">
-            <input type="text" 
-                   class="note-title" 
-                   value="${note.title || 'New Note'}"
-                   placeholder="Note Title"
-                   maxlength="40"
-                   aria-label="Note title">
+            <div class="title-wrapper">
+                <input type="text" class="note-title" 
+                       value="${note.title || 'New Note'}" 
+                       placeholder="Note Title">
+                <div class="note-date">${note.date}</div>
+            </div>
             <div class="note-controls">
-                <button class="note-close" aria-label="Close note">×</button>
+                <button class="btn-save" title="Save to Website">💾</button>
+                <button class="btn-share" title="Share Note">📤</button>
+                <button class="close-btn" title="Close Note">×</button>
             </div>
         </div>
-        <div class="note-content" 
-             contenteditable="true" 
-             aria-label="Note content">${note.content || ''}</div>
+        <div class="note-content" contenteditable="true">${note.content || ''}</div>
     `;
 
-    // Element references
+    // Create share menu
+    const shareMenu = document.createElement('div');
+    shareMenu.className = 'share-menu';
+    shareMenu.innerHTML = `
+        <button class="share-option" data-type="whatsapp">WhatsApp</button>
+        <button class="share-option" data-type="email">Email</button>
+        <button class="share-option" data-type="copy">Copy Text</button>
+        <button class="share-option" data-type="download">Download</button>
+    `;
+    noteEl.appendChild(shareMenu);
+
     const titleInput = noteEl.querySelector('.note-title');
     const contentEl = noteEl.querySelector('.note-content');
-    const closeBtn = noteEl.querySelector('.note-close');
+    const closeBtn = noteEl.querySelector('.close-btn');
+    const shareBtn = noteEl.querySelector('.btn-share');
+    const saveBtn = noteEl.querySelector('.btn-save'); // FIXED: Added missing declaration
 
-    // Title editing handler
-    let titleTimeout;
+    // Title handler
     titleInput.addEventListener('input', () => {
         note.title = titleInput.value.trim();
-        clearTimeout(titleTimeout);
-        titleTimeout = setTimeout(() => saveNote(note), 300);
+        saveNote(note);
     });
 
-    // Content editing handler
-    let contentTimeout;
+    // Content handler
     contentEl.addEventListener('input', () => {
         note.content = contentEl.innerHTML;
-        clearTimeout(contentTimeout);
-        contentTimeout = setTimeout(() => saveNote(note), 500);
+        saveNote(note);
     });
 
-    // Close button handler
+    // Close handler
     closeBtn.addEventListener('click', () => {
         noteEl.remove();
-        chrome.storage.local.get(['notes'], ({ notes }) => {
+        chrome.storage.local.get(['notes'], ({ notes = [] }) => {
             const updatedNotes = notes.filter(n => n.id !== note.id);
             chrome.storage.local.set({ notes: updatedNotes });
         });
     });
 
-    // Drag implementation
+    // Share button handler
+    let shareMenuVisible = false;
+    shareBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        shareMenuVisible = !shareMenuVisible;
+
+        // Close all other share menus
+        document.querySelectorAll('.share-menu').forEach(menu => {
+            if (menu !== shareMenu) menu.style.display = 'none';
+        });
+
+        // Position menu near share button
+        const rect = shareBtn.getBoundingClientRect();
+        shareMenu.style.left = `${rect.left}px`;
+        shareMenu.style.top = `${rect.bottom + 5}px`;
+        shareMenu.style.display = shareMenuVisible ? 'flex' : 'none';
+    });
+
+    // Share option handlers
+    shareMenu.querySelectorAll('.share-option').forEach(option => {
+        option.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const shareType = e.target.dataset.type;
+            const contentText = contentEl.textContent || '';
+            const title = note.title || 'Note';
+            const date = note.date || '';
+
+            const shareContent = `📝 ${title}\n📅 ${date}\n\n${contentText}`;
+
+            switch(shareType) {
+                case 'whatsapp':
+                    shareViaWhatsApp(shareContent);
+                    break;
+                case 'email':
+                    shareViaEmail(title, shareContent);
+                    break;
+                case 'copy':
+                    copyToClipboard(shareContent);
+                    break;
+                case 'download':
+                    downloadNote(title, shareContent);
+                    break;
+            }
+
+            // Hide menu after selection
+            shareMenu.style.display = 'none';
+            shareMenuVisible = false;
+        });
+    });
+
+    // Fixed: Removed duplicate event listener and added proper save logic
+    saveBtn.addEventListener('click', async () => {
+        const appIsOpen = await isAppOpen();
+
+        if (!appIsOpen) {
+            showToast('Please open the Sticky Notes app first');
+            return;
+        }
+
+        // Send note data to website
+        window.postMessage({
+            source: 'sticky-notes-extension',
+            action: 'SAVE_NOTE',
+            note: {
+                id: note.id,
+                title: titleInput.value.trim(),
+                content: contentEl.innerText,
+                date: note.date
+            }
+        }, '*');
+        
+        showToast('Note saved to Floating Notes folder!');
+    });
+
+    // Drag implementation - fixed version
     let isDragging = false;
     let startX, startY, initialX, initialY;
-    
+
     const header = noteEl.querySelector('.note-header');
     header.addEventListener('mousedown', startDrag);
-    
+
     function startDrag(e) {
+        // Only respond to left mouse button
+        if (e.button !== 0 || e.target.closest('.btn-share')) return;
+
         isDragging = true;
         startX = e.clientX;
         startY = e.clientY;
-        initialX = noteEl.offsetLeft;
-        initialY = noteEl.offsetTop;
-        
+        initialX = parseFloat(noteEl.style.left) || 0;
+        initialY = parseFloat(noteEl.style.top) || 0;
+
+        // Add dragging class for visual feedback
+        noteEl.classList.add('dragging');
+
         document.addEventListener('mousemove', drag);
         document.addEventListener('mouseup', stopDrag);
     }
@@ -86,23 +185,35 @@ function createFloatingNote(note) {
     function drag(e) {
         if (!isDragging) return;
         e.preventDefault();
-        
+
         const dx = e.clientX - startX;
         const dy = e.clientY - startY;
-        
+
         noteEl.style.left = `${initialX + dx}px`;
         noteEl.style.top = `${initialY + dy}px`;
     }
 
     function stopDrag() {
+        if (!isDragging) return;
         isDragging = false;
-        note.x = parseInt(noteEl.style.left);
-        note.y = parseInt(noteEl.style.top);
+        noteEl.classList.remove('dragging');
+
+        // Update note position
+        note.x = parseFloat(noteEl.style.left);
+        note.y = parseFloat(noteEl.style.top);
         saveNote(note);
-        
+
         document.removeEventListener('mousemove', drag);
         document.removeEventListener('mouseup', stopDrag);
     }
+
+    // Close share menu when clicking elsewhere
+    document.addEventListener('click', (e) => {
+        if (!noteEl.contains(e.target) && shareMenuVisible) {
+            shareMenu.style.display = 'none';
+            shareMenuVisible = false;
+        }
+    });
 
     // Initial focus for new notes
     if (!note.title && !note.content) {
@@ -112,44 +223,70 @@ function createFloatingNote(note) {
     return noteEl;
 }
 
-// Storage helper
+// Sharing functions
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('Copied to clipboard!');
+    }).catch(err => {
+        showToast('Failed to copy!');
+        console.error('Copy failed:', err);
+    });
+}
+
+function shareViaWhatsApp(text) {
+    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+function shareViaEmail(subject, body) {
+    const mailto = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const a = document.createElement('a');
+    a.href = mailto;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+function downloadNote(title, content) {
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${title.replace(/[^a-z0-9]/gi, '_')}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }, 100);
+}
+
+function showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'website-toast';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    // Position toast above other notes
+    toast.style.zIndex = '2147483647';
+
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+        }
+    }, 2000);
+}
+
 function saveNote(note) {
     chrome.storage.local.get(['notes'], ({ notes = [] }) => {
-        const existing = notes.findIndex(n => n.id === note.id);
-        if (existing >= 0) {
-            notes[existing] = note;
+        const existingIndex = notes.findIndex(n => n.id === note.id);
+        if (existingIndex >= 0) {
+            notes[existingIndex] = note;
         } else {
             notes.push(note);
         }
         chrome.storage.local.set({ notes });
-    });
-}
-
-// Initialize notes on page load
-chrome.storage.local.get(['notes'], ({ notes = [] }) => {
-    notes.forEach(note => {
-        document.body.appendChild(createFloatingNote(note));
-    });
-});
-
-// Debounce helper function
-function debounce(fn, delay) {
-    let timeout;
-    return (...args) => {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => fn(...args), delay);
-    };
-}
-function saveNotePosition(id, x, y) {
-    chrome.storage.local.get(['notes'], ({ notes }) => {
-        const updated = notes.map(n => n.id === id ? {...n, x, y} : n);
-        chrome.storage.local.set({ notes: updated });
-    });
-}
-
-function saveNoteContent(id, content) {
-    chrome.storage.local.get(['notes'], ({ notes }) => {
-        const updated = notes.map(n => n.id === id ? {...n, content} : n);
-        chrome.storage.local.set({ notes: updated });
     });
 }
