@@ -1,38 +1,38 @@
 let FLOATING_NOTES_FOLDER_NAME = "Floating Notes";
 
-let data = [
-    {
-        id: 'folder-1', name: 'My First Folder', notes: [
-            {
-                id: 'note-1',
-                title: 'Shopping List',
-                content: '',
-                color: '#fffb82',
-                created: new Date().toISOString(),
-                liked: false,
-                todos: [
-                    { text: 'Buy milk', done: false },
-                    { text: 'Get eggs', done: true }
-                ],
-                timer: null,
-                bulletPoints: ['Remember to check expiry dates', 'Buy organic if possible'],
-                featuresCollapsed: false,
-            },
-            {
-                id: 'note-2',
-                title: 'Work Tasks',
-                content: 'Finish report by Friday\nPrepare presentation slides',
-                color: '#ffd3b6',
-                created: new Date(new Date().getTime() - 2 * 3600000).toISOString(),
-                liked: true,
-                todos: [],
-                timer: { seconds: 1800, running: false, interval: null },
-                bulletPoints: [],
-                featuresCollapsed: false,
-            },
-        ]
-    },
-];
+// let data = [
+//     {
+//         id: 'folder-1', name: 'My First Folder', notes: [
+//             {
+//                 id: 'note-1',
+//                 title: 'Shopping List',
+//                 content: '',
+//                 color: '#fffb82',
+//                 created: new Date().toISOString(),
+//                 liked: false,
+//                 todos: [
+//                     { text: 'Buy milk', done: false },
+//                     { text: 'Get eggs', done: true }
+//                 ],
+//                 timer: null,
+//                 bulletPoints: ['Remember to check expiry dates', 'Buy organic if possible'],
+//                 featuresCollapsed: false,
+//             },
+//             {
+//                 id: 'note-2',
+//                 title: 'Work Tasks',
+//                 content: 'Finish report by Friday\nPrepare presentation slides',
+//                 color: '#ffd3b6',
+//                 created: new Date(new Date().getTime() - 2 * 3600000).toISOString(),
+//                 liked: true,
+//                 todos: [],
+//                 timer: { seconds: 1800, running: false, interval: null },
+//                 bulletPoints: [],
+//                 featuresCollapsed: false,
+//             },
+//         ]
+//     },
+// ];
 
 function getFloatingNotesFolder() {
     let folder = data.find(f => f.name === FLOATING_NOTES_FOLDER_NAME);
@@ -138,8 +138,11 @@ function renderFolders() {
     folderListDiv.innerHTML = '';
     data.forEach(folder => {
         const div = document.createElement('div');
-        div.className = 'folder-item' + (folder.id === selectedFolderId ? ' active' : '');
-
+        // Fixed class assignment:
+        let className = 'folder-item';
+        if (folder.id === selectedFolderId) className += ' active';
+        if (folder.isExtensionFolder) className += ' floating-notes';
+        div.className = className;
         // Folder name span
         const folderNameSpan = document.createElement('span');
         folderNameSpan.className = 'folder-name';
@@ -198,10 +201,7 @@ function renderNotes() {
         folderTitleEl.textContent = 'Select a folder';
         notesContainer.innerHTML = '';
         addNoteBtn.disabled = true;
-        div.className = 'folder-item' +
-            (folder.id === selectedFolderId ? ' active' : '') +
-            (folder.isExtensionFolder ? ' floating-notes' : '');
-        return;
+        return; // Fixed: removed problematic div reference
     }
     const folder = data.find(f => f.id === selectedFolderId);
     folderTitleEl.textContent = folder.name;
@@ -864,42 +864,47 @@ function init() {
 
 // Handle messages from extension
 window.addEventListener('message', (event) => {
-    if (event.data && event.data.source === 'sticky-notes-extension' &&
-        event.data.action === 'SAVE_NOTE') {
-        saveExtensionNote(event.data.note);
+    if (event.data && event.data.source === 'sticky-notes-extension') {
+        if (event.data.action === 'SAVE_NOTE') {
+            saveExtensionNote(event.data.note);
+        }
     }
 });
 
 function saveExtensionNote(noteData) {
-    if (window.location.origin !== "https://capstone-sigma-eight.vercel.app") {
+    // Only process if we're on the correct domain
+    if (window.location.origin !== "https://capstone-sigma-eight.vercel.app/") {
         console.warn("Note saving only works on the app domain");
         return;
     }
-    const folder = getFloatingNotesFolder();
 
-    // Check if note already exists
-    const exists = folder.notes.some(n =>
-        n.originalNoteId === noteData.id
-    );
+    const folder = ensureFloatingNotesFolder();
 
-    if (!exists) {
-        const newNote = {
-            id: generateId('note'),
-            title: noteData.title || 'Floating Note',
-            content: noteData.content || '',
-            color: '#fff9c4',
-            created: new Date().toISOString(),
-            isFloatingNote: true,
-            originalNoteId: noteData.id
-        };
+    const newNote = {
+        id: generateId('note'),
+        title: noteData.title || 'Floating Note',
+        content: noteData.content || '',
+        color: '#fffb82',
+        created: new Date().toISOString(),
+        liked: false,
+        todos: [],
+        timer: null,
+        bulletPoints: [],
+        featuresCollapsed: false,
+        float: false,
+        floatPosition: null,
+        isExtensionNote: true
+    };
 
-        folder.notes.push(newNote);
-        saveData();
-        selectedFolderId = folder.id;
-        renderFolders();
-        renderNotes();
-        showToast('Floating note saved!');
-    }
+    folder.notes.push(newNote);
+    saveData();
+
+    // Switch to floating notes folder
+    selectedFolderId = folder.id;
+    renderFolders();
+    renderNotes();
+
+    showToast('Floating note saved!');
 }
 
 function ensureFloatingNotesFolder() {
