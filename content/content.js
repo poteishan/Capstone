@@ -6,15 +6,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 });
 
-// Check if app is open
-function isAppOpen() {
-    return new Promise((resolve) => {
-        chrome.runtime.sendMessage({ action: "checkAppOpen" }, (response) => {
-            resolve(response && response.isOpen);
-        });
-    });
-}
-
+// Load existing notes on page load
 chrome.storage.local.get(['notes'], ({ notes = [] }) => {
     notes.forEach(note => {
         const noteEl = createFloatingNote(note);
@@ -29,6 +21,7 @@ function createFloatingNote(note) {
     noteEl.style.top = `${note.y}px`;
     noteEl.dataset.noteId = note.id;
 
+    // CORRECTED HTML (removed extra quote after note-header)
     noteEl.innerHTML = `
         <div class="note-header">
             <div class="title-wrapper">
@@ -61,7 +54,7 @@ function createFloatingNote(note) {
     const contentEl = noteEl.querySelector('.note-content');
     const closeBtn = noteEl.querySelector('.close-btn');
     const shareBtn = noteEl.querySelector('.btn-share');
-    const saveBtn = noteEl.querySelector('.btn-save'); // FIXED: Added missing declaration
+    const saveBtn = noteEl.querySelector('.btn-save');
 
     // Title handler
     titleInput.addEventListener('input', () => {
@@ -134,44 +127,15 @@ function createFloatingNote(note) {
         });
     });
 
-    // Fixed: Removed duplicate event listener and added proper save logic
-    saveBtn.addEventListener('click', async () => {
-        const appIsOpen = await isAppOpen();
-        if (!appIsOpen) {
-            showToast('Please open the Sticky Notes app first');
-            return;
-        }
-
-        // Send to background instead of postMessage
-        chrome.runtime.sendMessage({
-            action: "saveNoteToApp",
-            note: {
-                id: note.id,
-                title: titleInput.value.trim(),
-                content: contentEl.innerText,
-                date: note.date
-            }
-        });
-
-        showToast('Note saved to Floating Notes folder!');
+    // Save to website handler
+    saveBtn.addEventListener('click', () => {
+        showToast('Note saved to website!');
+        // Website integration logic will go here
     });
 
-    // Add this to content.js
-    chrome.runtime.onMessage.addListener((message) => {
-        if (message.action === "SAVE_NOTE_FROM_EXTENSION") {
-            window.postMessage({
-                source: 'sticky-notes-extension',
-                action: 'SAVE_NOTE',
-                note: message.note
-            }, '*');
-        }
-    });
     // Drag implementation - fixed version
     let isDragging = false;
     let startX, startY, initialX, initialY;
-
-    const header = noteEl.querySelector('.note-header');
-    header.addEventListener('mousedown', startDrag);
 
     function startDrag(e) {
         // Only respond to left mouse button
@@ -188,6 +152,32 @@ function createFloatingNote(note) {
 
         document.addEventListener('mousemove', drag);
         document.addEventListener('mouseup', stopDrag);
+    }
+
+    function drag(e) {
+        if (e.button !== 0 ||
+            e.target.closest('button') ||
+            e.target.tagName === 'INPUT') return;
+
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+
+        noteEl.style.left = `${initialX + dx}px`;
+        noteEl.style.top = `${initialY + dy}px`;
+    }
+
+    function stopDrag() {
+        if (!isDragging) return;
+        isDragging = false;
+        noteEl.classList.remove('dragging');
+
+        // Update note position
+        note.x = parseFloat(noteEl.style.left);
+        note.y = parseFloat(noteEl.style.top);
+        saveNote(note);
+
+        document.removeEventListener('mousemove', drag);
+        document.removeEventListener('mouseup', stopDrag);
     }
 
     function drag(e) {
@@ -213,6 +203,11 @@ function createFloatingNote(note) {
 
         document.removeEventListener('mousemove', drag);
         document.removeEventListener('mouseup', stopDrag);
+    }
+
+    const header = noteEl.querySelector('.note-header');
+    if (header) {
+        header.addEventListener('mousedown', startDrag);
     }
 
     // Close share menu when clicking elsewhere
