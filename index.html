@@ -15,78 +15,28 @@
   <div id="sidebar" aria-label="Folders sidebar">
     <h1>Notes</h1>
     <div id="folder-list" role="list" tabindex="0">
-      <!-- Folders inserted dynamically -->
     </div>
     <button id="new-folder-btn" aria-label="Add new folder">+ New Folder</button>
   </div>
-
   <div class="change" id="main-content" aria-live="polite" aria-atomic="true">
     <div id="header">
+      <button id="hamburger" class="hamburger" aria-label="Toggle sidebar">
+        <span class="hamburger-box">
+          <span class="hamburger-inner"></span>
+        </span>
+      </button>
       <h2 id="folder-title">Select a folder</h2>
+      <button id="add-note-btn" disabled aria-label="Add new note in selected folder">+ Add Note</button>
       <div id="search-container">
         <input type="search" id="search-input" aria-label="Search notes" placeholder="Search notes..." />
         <span id="search-icon" aria-hidden="true">🔍</span>
       </div>
     </div>
-    <button id="add-note-btn" disabled aria-label="Add new note in selected folder">+ Add Note</button>
-    <div id="extension-container" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
-      <button id="showExtension"
-        style="padding: 10px; background: #80cbc4; border: none; border-radius: 50%; cursor: pointer;">
-        <i class="fa-solid fa-paper-plane"></i>
-      </button>
-      <div id="extension-popup"
-        style="display: none; position: absolute; bottom: 50px; right: 0; width: 300px; background: white; border: 1px solid #ccc; padding: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
-        <button id="newFloatingNote"
-          style="padding: 8px 15px; background: #80cbc4; border: none; border-radius: 4px; cursor: pointer; margin-bottom: 10px;">
-          + New Floating Note
-        </button>
-        <div id="floating-notes-container"></div>
-      </div>
-    </div>
-    <div id="notes-container" aria-live="polite"></div>
+    <div id="notes-container"></div>
   </div>
-  <div class="container">
-    <h2 id="form-title">Login</h2>
-    <input type="email" id="email" placeholder="Email" required />
-    <input type="password" id="password" placeholder="Password" required />
-
-    <button id="auth-btn">Login</button>
-    <p id="toggle-form">Don't have an account? <span id="toggle-link">Sign up</span></p>
-    <p id="error-message"></p>
-  </div>
-
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
   <script src="auth.js"></script>
-  <script>
-    // Toggle extension popup
-    document.getElementById('showExtension').addEventListener('click', () => {
-      const popup = document.getElementById('extension-popup');
-      popup.style.display = popup.style.display === 'block' ? 'none' : 'block';
-    });
-
-    // Create new floating note
-    document.getElementById('newFloatingNote').addEventListener('click', () => {
-      // Create a new floating note
-      const noteId = Date.now().toString();
-      const newNote = {
-        id: noteId,
-        title: '',
-        content: '',
-        x: window.innerWidth - 350,
-        y: 100,
-        date: new Date().toLocaleString()
-      };
-
-      // Create and display the note
-      const noteEl = createFloatingNote(newNote);
-      document.body.appendChild(noteEl);
-
-      // Save the note
-      saveNote(newNote);
-    });
-  </script>
-
   <script src="app.js"></script>
 </body>
 
