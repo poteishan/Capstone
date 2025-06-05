@@ -22,7 +22,7 @@
   }
 
   #sidebar {
-      min-width: 200px;
+      min-width: 212px;
       max-width: 490px;
       background: #ffffff;
       color: #000000;
@@ -70,10 +70,6 @@
   .folder-name {
       flex-grow: 1;
       user-select: none;
-  }
-
-  .folder-name:focus {
-      outline: 2px solid #80cbc4;
   }
 
   .folder-delete-btn {
@@ -271,6 +267,7 @@
   }
 
   .sticky-note .note-header {
+      background: none;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -281,9 +278,11 @@
       font-weight: 700;
       font-size: 1.2rem;
       flex-grow: 1;
+      word-break: break-word;
       cursor: pointer;
       outline: none;
       min-height: 1.4em;
+      max-width: 100%;
   }
 
   .sticky-note .note-title[contenteditable="true"] {
@@ -322,6 +321,7 @@
       height: 170px;
       margin-top: 6px;
       outline: none;
+      word-break: break-word;
       /* white-space: pre-wrap; */
       overflow-y: scroll;
       font-size: 1.05rem;
@@ -524,10 +524,6 @@
           height: calc(100vh - 120px);
           overflow-y: auto;
       }
-  }
-
-  textarea {
-      height: 20px;
   }
 
   /* Note options dropdown */
@@ -914,5 +910,142 @@
       100% {
           opacity: 0;
           transform: translateX(-50%) translateY(20px);
+      }
+  }
+
+  /* Hamburger Menu Styles */
+  .hamburger {
+      display: none;
+      cursor: pointer;
+      transition-property: opacity, filter;
+      transition-duration: 0.15s;
+      transition-timing-function: linear;
+      font: inherit;
+      color: inherit;
+      text-transform: none;
+      background-color: transparent;
+      border: 0;
+      margin: 0;
+      overflow: visible;
+      padding: 10px;
+      z-index: 1001;
+  }
+
+  .hamburger-box {
+      width: 24px;
+      height: 24px;
+      display: inline-block;
+      position: relative;
+  }
+
+  .hamburger-inner {
+      display: block;
+      top: 50%;
+      margin-top: -2px;
+  }
+
+  .hamburger-inner,
+  .hamburger-inner::before,
+  .hamburger-inner::after {
+      width: 24px;
+      height: 2px;
+      background-color: #37474f;
+      border-radius: 4px;
+      position: absolute;
+      transition-property: transform;
+      transition-duration: 0.15s;
+      transition-timing-function: ease;
+  }
+
+  .hamburger-inner::before,
+  .hamburger-inner::after {
+      content: "";
+      display: block;
+  }
+
+  .hamburger-inner::before {
+      top: -8px;
+  }
+
+  .hamburger-inner::after {
+      bottom: -8px;
+  }
+
+  /* Active state */
+  .hamburger.active .hamburger-inner {
+      transform: rotate(45deg);
+  }
+
+  .hamburger.active .hamburger-inner::before {
+      transform: rotate(-90deg) translate3d(-8px, 0, 0);
+      top: 0;
+  }
+
+  .hamburger.active .hamburger-inner::after {
+      transform: rotate(90deg) translate3d(8px, 0, 0);
+      bottom: 0;
+  }
+
+  /* Sidebar Overlay */
+  .overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 999;
+  }
+
+  /* Responsive changes */
+  @media (max-width: 700px) {
+      .hamburger {
+          display: block;
+      }
+
+      #sidebar {
+          position: fixed;
+          left: -250px;
+          top: 0;
+          bottom: 0;
+          width: 250px;
+          z-index: 1000;
+          transition: left 0.3s ease;
+          overflow-y: auto;
+      }
+
+      #sidebar.sidebar-visible {
+          left: 0;
+          box-shadow: 2px 0 10px rgba(0, 0, 0, 0.2);
+      }
+
+      .overlay.sidebar-visible {
+          display: block;
+      }
+
+      #folder-list {
+          display: block;
+          overflow-y: auto;
+          padding: 10px 0;
+      }
+
+      .folder-item {
+          min-width: auto;
+          text-align: left;
+          margin: 8px 10px;
+      }
+
+      #main-content {
+          padding-left: 10px;
+          padding-right: 10px;
+      }
+
+      #header {
+          padding: 10px 0;
+      }
+
+      #search-container {
+          width: 180px;
       }
   }
