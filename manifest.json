@@ -42,8 +42,8 @@
         }
     ],
     "host_permissions": [
-        "https://capstone-sigma-eight.vercel.app/*"
-    ],
+    "https://capstone-sigma-eight.vercel.app/*"
+  ],
     "background": {
         "service_worker": "background.js"
     }
