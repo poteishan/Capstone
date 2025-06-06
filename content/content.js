@@ -77,6 +77,16 @@ function createFloatingNote(note) {
         });
     });
 
+    function createNoteElement(note) {
+    // ... existing code ...
+    if (note.folderId === floatingNotesFolder.id) {
+        const ribbon = document.createElement('div');
+        ribbon.className = 'floating-note-ribbon';
+        ribbon.textContent = 'From Extension';
+        noteElement.appendChild(ribbon);
+    }
+}
+
     // Share button handler
     let shareMenuVisible = false;
     shareBtn.addEventListener('click', (e) => {
@@ -128,10 +138,25 @@ function createFloatingNote(note) {
     });
 
     // Save to website handler
-    saveBtn.addEventListener('click', () => {
-        showToast('Note saved to website!');
-        // Website integration logic will go here
+    saveBtn.addEventListener('click', async () => {
+    const noteData = {
+        id: note.id,
+        title: titleInput.value.trim(),
+        content: contentEl.innerText,
+        date: note.date
+    };
+    
+    chrome.runtime.sendMessage({
+        action: "saveNoteToApp",
+        note: noteData
+    }, (response) => {
+        if (response && response.success) {
+            showToast('Note saved to Floating Notes folder!');
+        } else {
+            showToast('Please open the Sticky Notes app first');
+        }
     });
+});
 
     // Drag implementation - fixed version
     let isDragging = false;
