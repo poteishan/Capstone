@@ -1,5 +1,18 @@
   @import url('https://fonts.googleapis.com/css2?family=Indie+Flower&family=Roboto&display=swap');
 
+
+  /* Add to style.css */
+  .folder-item.main-folder,
+  .folder-item.main-folder.active {
+      background-color: #e3f2fd !important;
+      border-left: 4px solid #2196F3 !important;
+  }
+
+  .main-folder {
+      background-color: #e3f2fd !important;
+      font-weight: bold !important;
+  }
+
   :root {
       --primary-font: 'Roboto', sans-serif;
       --handwriting-font: 'Indie Flower', cursive;
