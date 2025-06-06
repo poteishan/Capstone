@@ -19,6 +19,15 @@
     transform: scale(1.02);
 }
 
+.folder-item.floating-notes {
+    background-color: #fff9c4;
+    border: 2px dashed #ffd54f;
+}
+
+.folder-item.floating-notes.active {
+    background-color: #ffecb3;
+}
+
 .note-header {
     transition: background 0.2s ease;
 }
@@ -28,8 +37,8 @@
 }
 
 .note-content {
-    width: 230px;
-    min-height: 180px; 
+    width: 300px;
+    height: 300px; 
     margin: 0 auto;
     padding: 12px;
 }
