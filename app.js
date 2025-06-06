@@ -1,4 +1,5 @@
 let FLOATING_NOTES_FOLDER_NAME = "Floating Notes";
+const MAIN_FOLDER_NAME = "Main";
 
 // let data = [
 //     {
@@ -135,15 +136,16 @@ const searchInput = document.getElementById('search-input');
 
 // Render folders list
 function renderFolders() {
+    // Always render the folder list
     folderListDiv.innerHTML = '';
+
     data.forEach(folder => {
         const div = document.createElement('div');
-        // Fixed class assignment:
         let className = 'folder-item';
         if (folder.id === selectedFolderId) className += ' active';
         if (folder.isExtensionFolder) className += ' floating-notes';
         div.className = className;
-        // Folder name span
+
         const folderNameSpan = document.createElement('span');
         folderNameSpan.className = 'folder-name';
         folderNameSpan.textContent = folder.name;
@@ -151,12 +153,12 @@ function renderFolders() {
         folderNameSpan.setAttribute('role', 'listitem');
         folderNameSpan.setAttribute('aria-selected', folder.id === selectedFolderId ? 'true' : 'false');
 
-        // Click on entire folder-item div to select folder
         div.onclick = () => {
             selectedFolderId = folder.id;
-            renderFolders();
-            renderNotes();
+            renderFolders();  // Update folder highlighting
+            renderNotes();    // Render notes for selected folder
         };
+
         folderNameSpan.onkeydown = (e) => {
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
@@ -166,20 +168,18 @@ function renderFolders() {
 
         div.appendChild(folderNameSpan);
 
-        // Delete button for folder - disabled if only one folder left
+        // Delete button for folder
         const canDelete = data.length > 1;
         const delBtn = document.createElement('button');
         delBtn.className = 'folder-delete-btn';
         delBtn.title = 'Delete folder';
         delBtn.setAttribute('aria-label', 'Delete folder ' + folder.name);
         delBtn.disabled = !canDelete;
-        delBtn.textContent = '×'; // Close/delete icon
+        delBtn.textContent = '×';
         delBtn.onclick = (e) => {
             e.stopPropagation();
             if (confirm(`Are you sure you want to delete the folder "${folder.name}" and all its notes?`)) {
-                // Remove folder from data
                 data = data.filter(f => f.id !== folder.id);
-                // Change selected folder if current deleted
                 if (selectedFolderId === folder.id) {
                     selectedFolderId = data.length ? data[0].id : null;
                 }
@@ -190,7 +190,6 @@ function renderFolders() {
         };
 
         div.appendChild(delBtn);
-
         folderListDiv.appendChild(div);
     });
 }
@@ -201,20 +200,65 @@ function renderNotes() {
         folderTitleEl.textContent = 'Select a folder';
         notesContainer.innerHTML = '';
         addNoteBtn.disabled = true;
-        return; // Fixed: removed problematic div reference
+        return;
     }
+
     const folder = data.find(f => f.id === selectedFolderId);
+
+    // Handle Main folder view
+    if (folder.isMainFolder) {
+        folderTitleEl.textContent = folder.name;
+        addNoteBtn.disabled = true;
+
+        // Collect all notes from all non-Main folders
+        let allNotes = [];
+        data.forEach(f => {
+            if (!f.isMainFolder && f.notes) {
+                allNotes = allNotes.concat(f.notes);
+            }
+        });
+
+        // Filter notes based on search query
+        const query = searchInput.value.toLowerCase();
+        const filteredNotes = allNotes.filter(note => {
+            return note.title.toLowerCase().includes(query) ||
+                note.content.toLowerCase().includes(query);
+        });
+
+        notesContainer.innerHTML = '';
+
+        if (filteredNotes.length === 0) {
+            const noNoteMsg = document.createElement('p');
+            noNoteMsg.textContent = 'No notes found';
+            noNoteMsg.style.color = '#555';
+            notesContainer.appendChild(noNoteMsg);
+            return;
+        }
+
+        filteredNotes.forEach(note => {
+            // Find which folder this note belongs to
+            const parentFolder = data.find(f =>
+                f.notes && f.notes.some(n => n.id === note.id)
+            );
+            notesContainer.appendChild(createNoteElement(note, parentFolder));
+        });
+        return;
+    }
+
+    // Handle regular folder view
     folderTitleEl.textContent = folder.name;
     addNoteBtn.disabled = false;
 
     // Filter notes based on search query
     const query = searchInput.value.toLowerCase();
 
-    // Defensive check folder.notes may be undefined
     if (!folder.notes) folder.notes = [];
 
     const filteredNotes = folder.notes.filter(note => {
-        return note.title.toLowerCase().includes(query) || note.content.toLowerCase().includes(query) || (note.bulletPoints.some(bp => bp.toLowerCase().includes(query))) || (note.todos.some(todo => todo.text.toLowerCase().includes(query)));
+        return note.title.toLowerCase().includes(query) ||
+            note.content.toLowerCase().includes(query) ||
+            (note.bulletPoints && note.bulletPoints.some(bp => bp.toLowerCase().includes(query))) ||
+            (note.todos && note.todos.some(todo => todo.text.toLowerCase().includes(query)));
     });
 
     notesContainer.innerHTML = '';
@@ -822,6 +866,22 @@ function formatNoteContent(note) {
     `;
 }
 
+function ensureMainFolder() {
+    const folderName = MAIN_FOLDER_NAME;
+    let folder = data.find(f => f.name === folderName);
+    if (!folder) {
+        folder = {
+            id: 'folder-main', // Fixed ID to prevent deletion
+            name: folderName,
+            notes: [],
+            isMainFolder: true
+        };
+        data.unshift(folder); // Add at the beginning
+        saveData();
+    }
+    return folder;
+}
+
 function createSaveButton(onSave) {
     const saveBtn = document.createElement('button');
     saveBtn.textContent = 'Save Changes';
@@ -852,14 +912,14 @@ function toggleLike(note) {
 // Initialize app - load data if saved
 function init() {
     loadData();
-    ensureFloatingNotesFolder(); // Add this line
+    ensureFloatingNotesFolder();
+    ensureMainFolder();
     if (data.length > 0) {
         selectedFolderId = data[0].id;
     }
-    renderFolders();
-    renderNotes();
+    renderFolders();  // Render folder list
+    renderNotes();    // Render notes for selected folder
 }
-
 
 
 // Handle messages from extension
@@ -921,6 +981,49 @@ function ensureFloatingNotesFolder() {
         saveData();
     }
     return folder;
+}
+
+window.addEventListener('message', (event) => {
+    if (event.data.source === 'sticky-notes-extension') {
+        if (event.data.action === 'SAVE_NOTE') {
+            saveExtensionNote(event.data.note);
+        }
+    }
+});
+
+function saveExtensionNote(noteData) {
+    // Find or create Floating Notes folder
+    let folder = appState.folders.find(f => f.name === "Floating Notes");
+    if (!folder) {
+        folder = createFolder("Floating Notes");
+        appState.folders.push(folder);
+        saveAppState();
+        renderFolders();
+    }
+
+    // Create/update note
+    const existingNote = folder.notes.find(n => n.id === noteData.id);
+    if (existingNote) {
+        existingNote.title = noteData.title;
+        existingNote.content = noteData.content;
+        existingNote.updatedAt = new Date().toISOString();
+    } else {
+        folder.notes.push({
+            id: noteData.id,
+            title: noteData.title,
+            content: noteData.content,
+            createdAt: noteData.date,
+            updatedAt: new Date().toISOString(),
+            folderId: folder.id
+        });
+    }
+
+    saveAppState();
+
+    // Refresh UI if viewing this folder
+    if (appState.currentFolderId === folder.id) {
+        renderNotes();
+    }
 }
 
 window.onload = init;
