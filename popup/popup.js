@@ -1,53 +1,63 @@
-// Drag functionality - fixed version
-// function makeDraggable(element, note) {
-//     let isDragging = false;
-//     let startX, startY, initialX, initialY;
+// Drag functionality (same as app.js but modified for extension)
+// Updated drag functionality
+function makeDraggable(element, note) {
+    let isDragging = false;
+    let startX, startY, initialX, initialY;
 
-//     const header = element.querySelector('.note-header');
-//     header.addEventListener('mousedown', startDrag);
+    const header = element.querySelector('.note-header');
+    header.addEventListener('mousedown', dragStart);
+    
+    function dragStart(e) {
+        // Only respond to left mouse button
+        if (e.button !== 0) return;
+        
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        initialX = parseFloat(element.style.left) || 0;
+        initialY = parseFloat(element.style.top) || 0;
+        
+        // Add dragging class for visual feedback
+        element.classList.add('dragging');
+        
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('mouseup', dragEnd);
+    }
 
-    // function startDrag(e) {
-    //     // Only respond to left mouse button
-    //     if (e.button !== 0) return;
+    function drag(e) {
+        if (!isDragging) return;
+        e.preventDefault();
+        
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        
+        element.style.left = `${initialX + dx}px`;
+        element.style.top = `${initialY + dy}px`;
+    }
 
-    //     isDragging = true;
-    //     startX = e.clientX;
-    //     startY = e.clientY;
-    //     initialX = parseFloat(element.style.left) || 0;
-    //     initialY = parseFloat(element.style.top) || 0;
+    function dragEnd() {
+        if (!isDragging) return;
+        isDragging = false;
+        element.classList.remove('dragging');
+        
+        // Update note position
+        note.x = parseFloat(element.style.left);
+        note.y = parseFloat(element.style.top);
+        saveNote(note);
+        
+        document.removeEventListener('mousemove', drag);
+        document.removeEventListener('mouseup', dragEnd);
+    }
+}
 
-    //     // Add dragging class for visual feedback
-    //     element.classList.add('dragging');
+// The rest of the file remains unchanged
 
-    //     document.addEventListener('mousemove', drag);
-    //     document.addEventListener('mouseup', stopDrag);
-    // }
-
-    // function drag(e) {
-    //     if (!isDragging) return;
-    //     e.preventDefault();
-
-    //     const dx = e.clientX - startX;
-    //     const dy = e.clientY - startY;
-
-    //     element.style.left = `${initialX + dx}px`;
-    //     element.style.top = `${initialY + dy}px`;
-    // }
-
-    // function stopDrag() {
-    //     if (!isDragging) return;
-    //     isDragging = false;
-    //     element.classList.remove('dragging');
-
-    //     // Update note position
-    //     note.x = parseFloat(element.style.left);
-    //     note.y = parseFloat(element.style.top);
-    //     saveNote(note);
-
-    //     document.removeEventListener('mousemove', drag);
-    //     document.removeEventListener('mouseup', stopDrag);
-    // }
-// }
+function saveNote(note) {
+    chrome.storage.local.get(['notes'], ({ notes }) => {
+        const updatedNotes = notes.map(n => n.id === note.id ? note : n);
+        chrome.storage.local.set({ notes: updatedNotes });
+    });
+}
 
 // Create floating note with editable title
 function createFloatingNote(note) {
@@ -55,8 +65,6 @@ function createFloatingNote(note) {
     noteEl.className = 'floating-note';
     noteEl.style.left = `${note.x}px`;
     noteEl.style.top = `${note.y}px`;
-    noteEl.style.width = '230px';
-    noteEl.style.minHeight = '230px';
 
     noteEl.innerHTML = `
         <div class="note-header">
@@ -71,55 +79,6 @@ function createFloatingNote(note) {
              contenteditable="true" 
              aria-label="Note content">${note.content}</div>
     `;
-
-    // In createFloatingNote function, update the drag implementation:
-    // ... existing code ...
-
-    // Drag implementation - fixed version
-    let isDragging = false;
-    let startX, startY;
-
-    const header = noteEl.querySelector('.note-header');
-    header.addEventListener('mousedown', startDrag);
-
-    function startDrag(e) {
-        if (e.button !== 0) return;
-
-        isDragging = true;
-        startX = e.clientX - noteEl.getBoundingClientRect().left;
-        startY = e.clientY - noteEl.getBoundingClientRect().top;
-
-        noteEl.classList.add('dragging');
-        document.addEventListener('mousemove', drag);
-        document.addEventListener('mouseup', stopDrag);
-    }
-
-    function drag(e) {
-        if (!isDragging) return;
-
-        const newX = e.clientX - startX;
-        const newY = e.clientY - startY;
-
-        // Apply boundaries
-        const maxX = window.innerWidth - noteEl.offsetWidth;
-        const maxY = window.innerHeight - noteEl.offsetHeight;
-
-        noteEl.style.left = `${Math.max(0, Math.min(maxX, newX))}px`;
-        noteEl.style.top = `${Math.max(0, Math.min(maxY, newY))}px`;
-    }
-
-    function stopDrag() {
-        if (!isDragging) return;
-        isDragging = false;
-        noteEl.classList.remove('dragging');
-
-        note.x = parseFloat(noteEl.style.left);
-        note.y = parseFloat(noteEl.style.top);
-        saveNote(note);
-
-        document.removeEventListener('mousemove', drag);
-        document.removeEventListener('mouseup', stopDrag);
-    }
 
     // Title handling
     const titleInput = noteEl.querySelector('.note-title');
@@ -138,7 +97,7 @@ function createFloatingNote(note) {
     // Close button
     noteEl.querySelector('.close-btn').addEventListener('click', () => {
         noteEl.remove();
-        chrome.storage.local.get(['notes'], ({ notes = [] }) => {
+        chrome.storage.local.get(['notes'], ({ notes }) => {
             const filteredNotes = notes.filter(n => n.id !== note.id);
             chrome.storage.local.set({ notes: filteredNotes });
         });
@@ -155,7 +114,7 @@ function createFloatingNote(note) {
     return noteEl;
 }
 
-// Save note function
+// Add these functions for title persistence
 function saveNote(note) {
     chrome.storage.local.get(['notes'], (result) => {
         const notes = result.notes || [];
@@ -184,6 +143,7 @@ function loadNotes() {
 document.addEventListener('DOMContentLoaded', loadNotes);
 
 // New note creation handler
+// Modify the new note creation handler:
 document.getElementById('newNote').addEventListener('click', () => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         // Check if valid tab exists
@@ -199,7 +159,7 @@ document.getElementById('newNote').addEventListener('click', () => {
             content: '',
             x: 100,
             y: 100,
-            date: new Date().toLocaleString()
+            date: new Date().toLocaleString() // Include if using date
         };
 
         // Save and inject note into webpage
