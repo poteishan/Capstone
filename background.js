@@ -1,4 +1,5 @@
 const APP_DOMAIN = "https://capstone-sigma-eight.vercel.app/";
+console.log('Background script loaded');
 let appTabId = null;
 let pendingNotes = [];
 
@@ -34,10 +35,13 @@ function sendPendingNotes() {
     // Send each note individually
     pendingNotes.forEach(note => {
       chrome.tabs.sendMessage(appTabId, {
-        source: 'sticky-notes-extension',
+        type: 'FROM_EXTENSION',
         action: "SAVE_NOTE",
         note: note
       }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('Error sending pending note:', chrome.runtime.lastError);
+        }
         if (response && response.success) {
           console.log('Pending note saved:', note.id);
           // Remove from pending
@@ -58,7 +62,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       console.log('App is open, sending note immediately:', note.id);
       
       chrome.tabs.sendMessage(appTabId, {
-        source: 'sticky-notes-extension',
+        type: 'FROM_EXTENSION',
         action: "SAVE_NOTE",
         note: note
       }, (response) => {
