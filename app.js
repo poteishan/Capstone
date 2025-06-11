@@ -35,6 +35,20 @@ const MAIN_FOLDER_NAME = "Main";
 //     },
 // ];
 
+function loadPendingNotes() {
+    // Request pending notes from background
+    chrome.runtime.sendMessage({ action: "getPendingNotes" }, (response) => {
+        if (response.pendingNotes) {
+            response.pendingNotes.forEach(note => {
+                saveExtensionNote(note);
+            });
+            // Clear pending after loading
+            chrome.runtime.sendMessage({ action: "clearPendingNotes" });
+        }
+    });
+}
+
+
 function getFloatingNotesFolder() {
     let folder = data.find(f => f.name === FLOATING_NOTES_FOLDER_NAME);
     if (!folder) {
@@ -54,6 +68,12 @@ function getFloatingNotesFolder() {
 window.addEventListener('message', (event) => {
     if (event.data.source === 'sticky-notes-extension' &&
         event.data.action === 'SAVE_NOTE') {
+
+        if (event.data.source === 'sticky-notes-extension' &&
+            event.data.action === 'SAVE_NOTE') {
+            const success = saveExtensionNote(event.data.note);
+            event.source.postMessage({ success }, event.origin);
+        }
 
         const noteData = event.data.note;
         const folder = ensureFloatingNotesFolder();
@@ -699,6 +719,11 @@ function showExpandedNote(note, folder) {
     document.body.appendChild(overlay);
 }
 
+function handlePendingNotes() {
+  // This will be called automatically when notes arrive
+  // No need to load via chrome.runtime
+}
+
 function insertAtCursor(textarea, text) {
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
@@ -928,31 +953,41 @@ function init() {
 
 // Handle messages from extension
 window.addEventListener('message', (event) => {
-    if (event.data.source === 'sticky-notes-extension' &&
-        event.data.action === 'SAVE_NOTE') {
-
-        ensureFloatingNotesFolder();
-        const folder = getFloatingNotesFolder();
-
-        const websiteNote = {
-            id: event.data.note.id || generateId('note'),
-            title: event.data.note.title || 'Floating Note',
-            content: event.data.note.content || '',
-            color: '#fff9c4',
-            created: event.data.note.date || new Date().toISOString(),
-            isExtensionNote: true
-        };
-
-        folder.notes.push(websiteNote);
-        saveData();
-
-        // Refresh UI
-        selectedFolderId = folder.id;
-        renderFolders();
-        renderNotes();
-
-        showToast(`Saved floating note to "${folder.name}" folder!`);
+  if (event.data.source === 'sticky-notes-extension' && 
+      event.data.action === 'SAVE_NOTE') {
+    
+    const noteData = event.data.note;
+    const folder = ensureFloatingNotesFolder();
+    
+    // Create/update note
+    const existingIndex = folder.notes.findIndex(n => n.id === noteData.id);
+    if (existingIndex >= 0) {
+      folder.notes[existingIndex] = {
+        ...folder.notes[existingIndex],
+        title: noteData.title,
+        content: noteData.content
+      };
+    } else {
+      folder.notes.push({
+        id: noteData.id,
+        title: noteData.title || 'Floating Note',
+        content: noteData.content || '',
+        color: '#fff9c4',
+        created: noteData.date || new Date().toISOString(),
+        isExtensionNote: true
+      });
     }
+    
+    saveData();
+    
+    // Send response back to extension
+    event.source.postMessage({ success: true }, event.origin);
+    
+    // Refresh UI
+    if (selectedFolderId === folder.id) {
+      renderNotes();
+    }
+  }
 });
 
 function saveExtensionNote(noteData) {
@@ -998,11 +1033,12 @@ function saveExtensionNote(noteData) {
 }
 
 function ensureFloatingNotesFolder() {
-    let folder = data.find(f => f.name === FLOATING_NOTES_FOLDER_NAME);
+    const folderName = "Floating Notes";
+    let folder = data.find(f => f.name === folderName);
     if (!folder) {
         folder = {
             id: 'folder-floating',
-            name: FLOATING_NOTES_FOLDER_NAME,
+            name: folderName,
             notes: [],
             isExtensionFolder: true
         };
@@ -1015,38 +1051,28 @@ function ensureFloatingNotesFolder() {
 
 
 function saveExtensionNote(noteData) {
-    // Find or create Floating Notes folder
-    let folder = appState.folders.find(f => f.name === "Floating Notes");
-    if (!folder) {
-        folder = createFolder("Floating Notes");
-        appState.folders.push(folder);
-        saveAppState();
-        renderFolders();
-    }
+    const folder = ensureFloatingNotesFolder();
 
     // Create/update note
-    const existingNote = folder.notes.find(n => n.id === noteData.id);
-    if (existingNote) {
-        existingNote.title = noteData.title;
-        existingNote.content = noteData.content;
-        existingNote.updatedAt = new Date().toISOString();
+    const existingIndex = folder.notes.findIndex(n => n.id === noteData.id);
+    if (existingIndex >= 0) {
+        folder.notes[existingIndex] = {
+            ...folder.notes[existingIndex],
+            title: noteData.title,
+            content: noteData.content
+        };
     } else {
         folder.notes.push({
             id: noteData.id,
-            title: noteData.title,
-            content: noteData.content,
-            createdAt: noteData.date,
-            updatedAt: new Date().toISOString(),
-            folderId: folder.id
+            title: noteData.title || 'Floating Note',
+            content: noteData.content || '',
+            color: '#fff9c4',
+            created: noteData.date || new Date().toISOString(),
+            isExtensionNote: true
         });
     }
 
-    saveAppState();
-
-    // Refresh UI if viewing this folder
-    if (appState.currentFolderId === folder.id) {
-        renderNotes();
-    }
+    saveData();
+    return true;
 }
-
 window.onload = init;
