@@ -7,8 +7,9 @@
         "128": "icons/icon128.png"
     },
     "permissions": [
+        "clipboardWrite",
+        "storage", 
         "activeTab",
-        "storage",
         "scripting",
         "tabs"
     ],
