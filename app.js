@@ -1,4 +1,4 @@
-let FLOATING_NOTES_FOLDER_NAME = "Floating Notes";
+const FLOATING_NOTES_FOLDER_NAME = "Floating Notes";
 const MAIN_FOLDER_NAME = "Main";
 
 // let data = [
@@ -52,41 +52,39 @@ function getFloatingNotesFolder() {
 }
 // Update the top event listener
 window.addEventListener('message', (event) => {
-    // Handle both message formats
-    const isExtensionMessage = 
-        (event.data.type === 'FROM_EXTENSION' && event.data.action === 'SAVE_NOTE') ||
-        (event.data.source === 'sticky-notes-extension' && event.data.action === 'SAVE_NOTE');
-    
-    if (isExtensionMessage) {
+    if (event.data.source === 'sticky-notes-extension' &&
+        event.data.action === 'SAVE_NOTE') {
+
         const noteData = event.data.note;
-        const folder = getFloatingNotesFolder();
+        const folder = ensureFloatingNotesFolder();
 
-        // Create website note
-        const websiteNote = {
-        id: noteData.id || generateId('note'),
-        title: noteData.title || 'Floating Note',
-        content: noteData.content || '',
-        color: '#fff9c4',
-        created: noteData.date || new Date().toISOString(),
-        liked: false,
-        todos: [],
-        timer: null,
-        bulletPoints: [],
-        featuresCollapsed: false,
-        isExtensionNote: true
-    };
+        // Create/update note
+        let existingNote = folder.notes.find(n => n.id === noteData.id);
+        if (!existingNote) {
+            existingNote = {
+                id: noteData.id,
+                title: noteData.title || 'Floating Note',
+                content: noteData.content || '',
+                color: '#fff9c4',
+                created: new Date().toISOString(),
+                isExtensionNote: true
+            };
+            folder.notes.push(existingNote);
+        } else {
+            // Update existing note
+            existingNote.title = noteData.title || existingNote.title;
+            existingNote.content = noteData.content || existingNote.content;
+        }
 
-    // Add to folder
-    folder.notes.push(websiteNote);
-    saveData();
+        saveData();
 
-    // Select and show the floating notes folder
-    selectedFolderId = folder.id;
-    renderFolders();
-    renderNotes();
+        // Update UI
+        selectedFolderId = folder.id;
+        renderFolders();
+        renderNotes();
 
-    showToast(`Saved floating note to "${folder.name}" folder!`);
-}
+        showToast(`Saved floating note to "${folder.name}" folder!`);
+    }
 });
 
 function showToast(message) {
@@ -930,10 +928,30 @@ function init() {
 
 // Handle messages from extension
 window.addEventListener('message', (event) => {
-    if (event.data && event.data.source === 'sticky-notes-extension') {
-        if (event.data.action === 'SAVE_NOTE') {
-            saveExtensionNote(event.data.note);
-        }
+    if (event.data.source === 'sticky-notes-extension' &&
+        event.data.action === 'SAVE_NOTE') {
+
+        ensureFloatingNotesFolder();
+        const folder = getFloatingNotesFolder();
+
+        const websiteNote = {
+            id: event.data.note.id || generateId('note'),
+            title: event.data.note.title || 'Floating Note',
+            content: event.data.note.content || '',
+            color: '#fff9c4',
+            created: event.data.note.date || new Date().toISOString(),
+            isExtensionNote: true
+        };
+
+        folder.notes.push(websiteNote);
+        saveData();
+
+        // Refresh UI
+        selectedFolderId = folder.id;
+        renderFolders();
+        renderNotes();
+
+        showToast(`Saved floating note to "${folder.name}" folder!`);
     }
 });
 
@@ -980,12 +998,11 @@ function saveExtensionNote(noteData) {
 }
 
 function ensureFloatingNotesFolder() {
-    const folderName = "Floating Notes";
-    let folder = data.find(f => f.name === folderName);
+    let folder = data.find(f => f.name === FLOATING_NOTES_FOLDER_NAME);
     if (!folder) {
         folder = {
-            id: generateId('folder'),
-            name: folderName,
+            id: 'folder-floating',
+            name: FLOATING_NOTES_FOLDER_NAME,
             notes: [],
             isExtensionFolder: true
         };
@@ -994,6 +1011,7 @@ function ensureFloatingNotesFolder() {
     }
     return folder;
 }
+
 
 
 function saveExtensionNote(noteData) {
