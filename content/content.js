@@ -142,9 +142,12 @@ function createFloatingNote(note) {
             id: note.id,
             title: titleInput.value.trim(),
             content: contentEl.innerText, // Use text content
-            date: note.date || new Date().toISOString()
+            date: note.date || new Date().toLocaleString()
         };
+        // Always save locally first
+        saveNoteLocally(noteData);
 
+        // Try to save to app
         chrome.runtime.sendMessage({
             action: "saveNoteToApp",
             note: noteData
@@ -152,10 +155,23 @@ function createFloatingNote(note) {
             if (response && response.success) {
                 showToast('Note saved to Floating Notes folder!');
             } else {
-                showToast('Failed to save. Please open the Sticky Notes app first');
+                showToast('Note saved locally. Will sync when app opens.');
             }
         });
     });
+
+    // New function to save locally
+    function saveNoteLocally(note) {
+        chrome.storage.local.get(['localNotes'], ({ localNotes = [] }) => {
+            const existingIndex = localNotes.findIndex(n => n.id === note.id);
+            if (existingIndex >= 0) {
+                localNotes[existingIndex] = note;
+            } else {
+                localNotes.push(note);
+            }
+            chrome.storage.local.set({ localNotes });
+        });
+    }
     // Drag implementation - fixed version
     let isDragging = false;
     let startX, startY, initialX, initialY;
