@@ -136,3 +136,20 @@ button:hover {
     opacity: 1;
     transform: scale(1.1);
 }
+
+.floating-note-saved {
+    border-left: 4px solid #ffd54f;
+    position: relative;
+}
+
+.floating-note-ribbon {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #ffd54f;
+    color: #333;
+    padding: 2px 8px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    transform: rotate(15deg);
+}
