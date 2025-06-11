@@ -78,14 +78,14 @@ function createFloatingNote(note) {
     });
 
     function createNoteElement(note) {
-    // ... existing code ...
-    if (note.folderId === floatingNotesFolder.id) {
-        const ribbon = document.createElement('div');
-        ribbon.className = 'floating-note-ribbon';
-        ribbon.textContent = 'From Extension';
-        noteElement.appendChild(ribbon);
+        // ... existing code ...
+        if (note.folderId === floatingNotesFolder.id) {
+            const ribbon = document.createElement('div');
+            ribbon.className = 'floating-note-ribbon';
+            ribbon.textContent = 'From Extension';
+            noteElement.appendChild(ribbon);
+        }
     }
-}
 
     // Share button handler
     let shareMenuVisible = false;
@@ -137,26 +137,25 @@ function createFloatingNote(note) {
         });
     });
 
-saveBtn.addEventListener('click', async () => {
-    const noteData = {
-        id: note.id,
-        title: titleInput.value.trim(),
-        content: contentEl.innerText,
-        date: note.date || new Date().toLocaleString()
-    };
-    
-    chrome.runtime.sendMessage({
-        action: "saveNoteToApp",
-        note: noteData
-    }, (response) => {
-        if (response && response.success) {
-            showToast('Note saved to Floating Notes folder!');
-        } else {
-            showToast('Failed to save. Please open the Sticky Notes app first');
-        }
-    });
-});
+    saveBtn.addEventListener('click', async () => {
+        const noteData = {
+            id: note.id,
+            title: titleInput.value.trim(),
+            content: contentEl.innerText, // Use text content
+            date: note.date || new Date().toISOString()
+        };
 
+        chrome.runtime.sendMessage({
+            action: "saveNoteToApp",
+            note: noteData
+        }, (response) => {
+            if (response && response.success) {
+                showToast('Note saved to Floating Notes folder!');
+            } else {
+                showToast('Failed to save. Please open the Sticky Notes app first');
+            }
+        });
+    });
     // Drag implementation - fixed version
     let isDragging = false;
     let startX, startY, initialX, initialY;
