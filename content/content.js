@@ -144,22 +144,26 @@ function createFloatingNote(note) {
             content: contentEl.innerText, // Use text content
             date: note.date || new Date().toLocaleString()
         };
-        // Always save locally first
-        saveNoteLocally(noteData);
 
-        // Try to save to app
-        chrome.runtime.sendMessage({
-            action: "saveNoteToApp",
-            note: noteData
-        }, (response) => {
-            if (response && response.success) {
-                showToast('Note saved to Floating Notes folder!');
-            } else {
-                showToast('Note saved locally. Will sync when app opens.');
-            }
-        });
+        try {
+            chrome.runtime.sendMessage({
+                action: "saveNoteToApp",
+                note: noteData
+            }, (response) => {
+                if (response && response.success) {
+                    showToast('Note saved to Floating Notes folder!');
+                    // Visual feedback
+                    noteEl.classList.add('note-saved');
+                    setTimeout(() => noteEl.classList.remove('note-saved'), 2000);
+                } else {
+                    showToast('Note saved locally. Will sync when app opens.');
+                }
+            });
+        } catch (error) {
+            console.error('Save error:', error);
+            showToast('Error saving note');
+        }
     });
-
     // New function to save locally
     function saveNoteLocally(note) {
         chrome.storage.local.get(['localNotes'], ({ localNotes = [] }) => {
