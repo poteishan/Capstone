@@ -39,9 +39,10 @@ function getFloatingNotesFolder() {
     let folder = data.find(f => f.name === FLOATING_NOTES_FOLDER_NAME);
     if (!folder) {
         folder = {
-            id: generateId('folder'),
+            id: 'folder-floating', // Fixed ID for consistency
             name: FLOATING_NOTES_FOLDER_NAME,
-            notes: []
+            notes: [],
+            isExtensionFolder: true
         };
         data.push(folder);
         saveData();
@@ -49,38 +50,43 @@ function getFloatingNotesFolder() {
     }
     return folder;
 }
-
+// Update the top event listener
 window.addEventListener('message', (event) => {
-    if (event.data.type === 'FROM_EXTENSION' && event.data.action === 'SAVE_NOTE') {
+    // Handle both message formats
+    const isExtensionMessage = 
+        (event.data.type === 'FROM_EXTENSION' && event.data.action === 'SAVE_NOTE') ||
+        (event.data.source === 'sticky-notes-extension' && event.data.action === 'SAVE_NOTE');
+    
+    if (isExtensionMessage) {
         const noteData = event.data.note;
         const folder = getFloatingNotesFolder();
 
         // Create website note
         const websiteNote = {
-            id: generateId('note'),
-            title: noteData.title || 'Floating Note',
-            content: noteData.content || '',
-            color: '#fff9c4',
-            created: new Date().toISOString(),
-            liked: false,
-            todos: [],
-            timer: null,
-            bulletPoints: [],
-            featuresCollapsed: false,
-            isFloatingNote: true,
-            originalNoteId: noteData.id
-        };
+        id: noteData.id || generateId('note'),
+        title: noteData.title || 'Floating Note',
+        content: noteData.content || '',
+        color: '#fff9c4',
+        created: noteData.date || new Date().toISOString(),
+        liked: false,
+        todos: [],
+        timer: null,
+        bulletPoints: [],
+        featuresCollapsed: false,
+        isExtensionNote: true
+    };
 
-        folder.notes.push(websiteNote);
-        saveData();
+    // Add to folder
+    folder.notes.push(websiteNote);
+    saveData();
 
-        // Select and show the floating notes folder
-        selectedFolderId = folder.id;
-        renderFolders();
-        renderNotes();
+    // Select and show the floating notes folder
+    selectedFolderId = folder.id;
+    renderFolders();
+    renderNotes();
 
-        showToast(`Saved floating note to "${FLOATING_NOTES_FOLDER_NAME}" folder!`);
-    }
+    showToast(`Saved floating note to "${folder.name}" folder!`);
+}
 });
 
 function showToast(message) {
@@ -284,11 +290,11 @@ function createNoteElement(note, folder) {
     noteEl.style.backgroundColor = note.color;
     noteEl.setAttribute('aria-label', `Note titled ${note.title}`);
 
-    if (folder.name === FLOATING_NOTES_FOLDER_NAME) {
+    if (note.isExtensionNote) {
         noteEl.classList.add('floating-note-saved');
         const ribbon = document.createElement('div');
         ribbon.className = 'floating-note-ribbon';
-        ribbon.textContent = 'Floating Note';
+        ribbon.textContent = 'From Extension';
         noteEl.appendChild(ribbon);
     }
 
@@ -932,13 +938,19 @@ window.addEventListener('message', (event) => {
 });
 
 function saveExtensionNote(noteData) {
-    // Only process if we're on the correct domain
-    if (window.location.origin !== "https://capstone-sigma-eight.vercel.app/") {
-        console.warn("Note saving only works on the app domain");
-        return;
+    // Find or create Floating Notes folder
+    let folder = data.find(f => f.name === "Floating Notes");
+    if (!folder) {
+        folder = {
+            id: generateId('folder'),
+            name: "Floating Notes",
+            notes: [],
+            isExtensionFolder: true
+        };
+        data.push(folder);
+        saveData();
+        renderFolders();
     }
-
-    const folder = ensureFloatingNotesFolder();
 
     const newNote = {
         id: generateId('note'),
@@ -983,13 +995,6 @@ function ensureFloatingNotesFolder() {
     return folder;
 }
 
-window.addEventListener('message', (event) => {
-    if (event.data.source === 'sticky-notes-extension') {
-        if (event.data.action === 'SAVE_NOTE') {
-            saveExtensionNote(event.data.note);
-        }
-    }
-});
 
 function saveExtensionNote(noteData) {
     // Find or create Floating Notes folder
