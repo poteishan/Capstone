@@ -137,13 +137,12 @@ function createFloatingNote(note) {
         });
     });
 
-    // Save to website handler
-    saveBtn.addEventListener('click', async () => {
+saveBtn.addEventListener('click', async () => {
     const noteData = {
         id: note.id,
         title: titleInput.value.trim(),
         content: contentEl.innerText,
-        date: note.date
+        date: note.date || new Date().toLocaleString()
     };
     
     chrome.runtime.sendMessage({
@@ -153,7 +152,7 @@ function createFloatingNote(note) {
         if (response && response.success) {
             showToast('Note saved to Floating Notes folder!');
         } else {
-            showToast('Please open the Sticky Notes app first');
+            showToast('Failed to save. Please open the Sticky Notes app first');
         }
     });
 });
