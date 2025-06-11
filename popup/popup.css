@@ -1,9 +1,10 @@
 /* Add to both popupcss.txt and contentstyle.txt */
+/* Add to popup.css */
 .floating-note {
     opacity: 0.15;
     width: 230px;
     min-height: 230px;
-    border: none; /* Remove border */
+    border: none;
     background: #fff9c4;
     transition: all 0.2s ease-in-out;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -11,53 +12,6 @@
     z-index: 2147483647;
     display: flex;
     flex-direction: column;
-}
-
-.floating-note:hover {
-    opacity: 1;
-    box-shadow: 0 6px 12px rgba(0,0,0,0.2);
-    transform: scale(1.02);
-}
-
-.note-header {
-    padding: 8px;
-    background: #ffeb3b;
-    border-radius: 6px 6px 0 0;
-    cursor: move;
-    display: flex;
-    align-items: center;
-    flex-shrink: 0;
-}
-
-.note-title {
-    flex-grow: 1;
-    background: transparent;
-    border: none;
-    font-weight: bold;
-    font-size: 1.1rem;
-    margin: 0 8px;
-    padding: 4px;
-    outline: none;
-    color: #333;
-    min-width: 120px;
-}
-
-.note-title:focus {
-    border-bottom: 2px dashed #d4b100;
-}
-
-.close-btn {
-    background: #ff5252;
-    color: white;
-    border: none;
-    border-radius: 50%;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    flex-shrink: 0;
 }
 
 .note-content {
@@ -72,6 +26,19 @@
     cursor: grabbing;
     box-shadow: 0 8px 16px rgba(0,0,0,0.3);
     z-index: 2147483646;
+}
+.floating-note.dragging {
+    cursor: grabbing;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+    transition: none;
+    opacity: 1 !important;
+    z-index: 2147483646;
+}
+
+.floating-note:hover {
+    opacity: 1;
+    box-shadow: 0 6px 12px rgba(0,0,0,0.2) !important;
+    transform: scale(1.02);
 }
 
 .note-header {
