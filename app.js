@@ -321,6 +321,13 @@ function renderNotes() {
 
 // Create sticky note element
 function createNoteElement(note, folder) {
+    const contentParts = [
+        note.content,
+        ...(note.todos || []).map(t => `☐ ${t.text}`),
+        ...(note.bulletPoints || []).map(b => `• ${b}`)
+    ];
+    if (!note.todos) note.todos = [];
+    if (!note.bulletPoints) note.bulletPoints = [];
 
     const noteEl = document.createElement('article');
     noteEl.className = 'sticky-note';
@@ -411,11 +418,6 @@ function createNoteElement(note, folder) {
     // Content area (editable)
     const contentEl = document.createElement('div');
     contentEl.className = 'note-content';
-    const contentParts = [
-        note.content,
-        ...note.todos.map(t => `☐ ${t.text}`),
-        ...note.bulletPoints.map(b => `• ${b}`)
-    ];
     contentEl.textContent = contentParts.join('\n');
     contentEl.tabIndex = 0;
     contentEl.setAttribute('role', 'textbox');
@@ -1072,26 +1074,31 @@ function ensureFloatingNotesFolder() {
 
 function saveExtensionNote(noteData) {
     const folder = ensureFloatingNotesFolder();
-
-    // Create/update note
     const existingIndex = folder.notes.findIndex(n => n.id === noteData.id);
+
     if (existingIndex >= 0) {
+        // Update existing note
         folder.notes[existingIndex] = {
             ...folder.notes[existingIndex],
             title: noteData.title,
             content: noteData.content
         };
     } else {
+        // Create new note with required properties
         folder.notes.push({
             id: noteData.id,
             title: noteData.title || 'Floating Note',
             content: noteData.content || '',
             color: '#fff9c4',
             created: noteData.date || new Date().toISOString(),
-            isExtensionNote: true
+            isExtensionNote: true,
+            todos: [],          // Add this
+            bulletPoints: [],   // Add this
+            liked: false,       // Add this
+            timer: null,        // Add this
+            featuresCollapsed: false  // Add this
         });
     }
-
     saveData();
     return true;
 }
