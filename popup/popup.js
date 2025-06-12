@@ -175,10 +175,19 @@ function saveNote(note) {
 }
 
 function loadNotes() {
-    chrome.storage.local.get(['notes'], (result) => {
-        (result.notes || []).forEach(note => {
-            const noteEl = createFloatingNote(note);
-            document.body.appendChild(noteEl);
+    chrome.storage.local.get({ notes: [] }, ({ notes }) => {
+        const container = document.getElementById('notesContainer');
+        container.innerHTML = ''; // Clear existing
+
+        notes.forEach(note => {
+            const noteEl = document.createElement('div');
+            noteEl.className = 'note';
+            noteEl.innerHTML = `
+                <div class="note-header">${note.title || 'Untitled'}</div>
+                <div class="note-content">${note.content || ''}</div>
+                <div class="note-date">${note.date || ''}</div>
+            `;
+            container.appendChild(noteEl);
         });
     });
 }
