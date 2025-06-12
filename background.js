@@ -1,5 +1,4 @@
 const APP_DOMAIN = "https://capstone-sigma-eight.vercel.app/";
-console.log('Background script loaded');
 let appTabId = null;
 let pendingNotes = [];
 
@@ -31,23 +30,23 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 function sendPendingNotes() {
   if (pendingNotes.length > 0 && appTabId) {
     console.log('Sending pending notes:', pendingNotes.length);
-    
+
     // Send each note individually
     pendingNotes.forEach(note => {
-      chrome.tabs.sendMessage(appTabId, {
-        type: 'FROM_EXTENSION',
-        action: "SAVE_NOTE",
-        note: note
-      }, (response) => {
-        if (chrome.runtime.lastError) {
-          console.error('Error sending pending note:', chrome.runtime.lastError);
-        }
-        if (response && response.success) {
-          console.log('Pending note saved:', note.id);
-          // Remove from pending
-          pendingNotes = pendingNotes.filter(n => n.id !== note.id);
-          chrome.storage.local.set({ pendingNotes });
-        }
+      chrome.scripting.executeScript({
+        target: { tabId: appTabId },
+        func: (note) => {
+          window.postMessage({
+            source: 'sticky-notes-extension',
+            action: "SAVE_NOTE",
+            note: note
+          }, "https://capstone-sigma-eight.vercel.app");
+        },
+        args: [note]
+      }, () => {
+        // Remove from pending regardless of success
+        pendingNotes = pendingNotes.filter(n => n.id !== note.id);
+        chrome.storage.local.set({ pendingNotes });
       });
     });
   }
@@ -57,28 +56,29 @@ function sendPendingNotes() {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "saveNoteToApp") {
     const note = request.note;
-    
+
     if (appTabId) {
-      console.log('App is open, sending note immediately:', note.id);
-      
-      chrome.tabs.sendMessage(appTabId, {
-        type: 'FROM_EXTENSION',
-        action: "SAVE_NOTE",
-        note: note
-      }, (response) => {
-        if (response && response.success) {
-          console.log('Note saved successfully:', note.id);
-          sendResponse({ success: true });
-        } else {
-          console.warn('App did not respond, saving as pending');
+      chrome.scripting.executeScript({
+        target: { tabId: appTabId },
+        func: (note) => {
+          window.postMessage({
+            source: 'sticky-notes-extension',
+            action: "SAVE_NOTE",
+            note: note
+          }, "https://capstone-sigma-eight.vercel.app");
+        },
+        args: [note]
+      }, () => {
+        if (chrome.runtime.lastError) {
           saveAsPending(note);
           sendResponse({ success: false });
+        } else {
+          sendResponse({ success: true });
         }
       });
-      
+
       return true; // Keep message channel open
     } else {
-      console.log('App not open, saving as pending:', note.id);
       saveAsPending(note);
       sendResponse({ success: false });
       return true;
