@@ -14,11 +14,10 @@ function makeDraggable(element, note) {
 
             const noteId = `note-${Date.now()}`;
             const newNote = {
-                id: noteId,
+                id: Date.now().toString(),
                 title: '',
                 content: '',
-                folder: 'Floating Notes',
-                tags: [], // ✅ add this to avoid undefined.map error
+                folder: 'Floating Notes',  // 👈 Add this property
                 x: 100,
                 y: 100,
                 date: new Date().toLocaleString()
