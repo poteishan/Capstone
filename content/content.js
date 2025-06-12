@@ -40,7 +40,7 @@ function createFloatingNote(note) {
                 <button class="close-btn" title="Close Note">×</button>
             </div>
         </div>
-        <div class="note-content" contenteditable="true">${note.content || ''}</div>
+        <div class="note-content" contenteditable="true" style="width: 360px">${note.content || ''}</div>
     `;
 
     // Create share menu
