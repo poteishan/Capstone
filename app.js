@@ -1104,3 +1104,18 @@ function saveExtensionNote(noteData) {
 }
 window.onload = init;
 // setTimeout(loadPendingNotes, 1000); // Give UI time to initialize
+
+
+// This map fucntion is not working properly 
+
+// ...note.todos.map(t => `☐ ${t.text}`),
+//         ...note.bulletPoints.map(b => `• ${b}`)
+
+// that's why error is occuring. Fix this error
+
+// Uncaught TypeError: Cannot read properties of undefined (reading 'map')
+//     at createNoteElement (app.js:377:23)
+//     at app.js:247:40
+//     at Array.forEach (<anonymous>)
+//     at renderNotes (app.js:242:23)
+//     at init (app.js:925:5)
