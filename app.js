@@ -161,7 +161,7 @@ function renderNotes() {
         let allNotes = [];
         data.forEach(f => {
             if (!f.isMainFolder && f.notes) {
-                allNotes = allNotes.concat(f.notes.map(note => ({...note, folderName: f.name})));
+                allNotes = allNotes.concat(f.notes.map(note => ({ ...note, folderName: f.name })));
             }
         });
 
@@ -200,7 +200,7 @@ function renderNotes() {
     const filteredNotes = folder.notes.filter(note => {
         const safeTodos = Array.isArray(note.todos) ? note.todos : [];
         const safeBulletPoints = Array.isArray(note.bulletPoints) ? note.bulletPoints : [];
-        
+
         return note.title.toLowerCase().includes(query) ||
             note.content.toLowerCase().includes(query) ||
             safeBulletPoints.some(bp => bp.toLowerCase().includes(query)) ||
@@ -228,7 +228,7 @@ function createNoteElement(note, folder) {
     // Safely handle todos and bulletPoints with proper defaults
     const safeTodos = Array.isArray(note.todos) ? note.todos : [];
     const safeBulletPoints = Array.isArray(note.bulletPoints) ? note.bulletPoints : [];
-    
+
     // Build content parts safely
     const contentParts = [
         note.content || '',
@@ -525,7 +525,7 @@ function duplicateNote(note, folder) {
     newNote.todos = Array.isArray(newNote.todos) ? newNote.todos : [];
     newNote.bulletPoints = Array.isArray(newNote.bulletPoints) ? newNote.bulletPoints : [];
     newNote.liked = false;
-    
+
     folder.notes.push(newNote);
     renderNotes();
     saveData();
@@ -656,7 +656,7 @@ function parseTodos(content) {
 function formatContentForEditing(note) {
     const safeTodos = Array.isArray(note.todos) ? note.todos : [];
     const safeBulletPoints = Array.isArray(note.bulletPoints) ? note.bulletPoints : [];
-    
+
     return [
         note.content || '',
         ...safeTodos.map(t => `☐ ${t.text || ''}`),
@@ -696,71 +696,47 @@ function ensureFloatingNotesFolder() {
     return folder;
 }
 
+function handleExtensionNote(noteData) {
+    const folder = ensureFloatingNotesFolder();
+
+    const existingIndex = folder.notes.findIndex(n => n.id === noteData.id);
+    const noteToSave = {
+        id: noteData.id,
+        title: noteData.title || 'Floating Note',
+        content: noteData.content || '',
+        color: noteData.color || '#fff9c4',
+        created: noteData.date || new Date().toISOString(),
+        isExtensionNote: true,
+        todos: [],
+        bulletPoints: [],
+        liked: false
+    };
+
+    if (existingIndex >= 0) {
+        folder.notes[existingIndex] = noteToSave;
+    } else {
+        folder.notes.push(noteToSave);
+    }
+
+    saveData();
+
+    if (selectedFolderId === folder.id) {
+        renderNotes();
+    }
+
+    showToast(`💾 Saved floating note: "${noteData.title}"!`);
+}
+
 // Extension message handling
 window.addEventListener('message', (event) => {
     try {
         if (!event.data || event.data.source !== 'sticky-notes-extension') return;
 
         if (event.data.action === 'SAVE_NOTE') {
-            const noteData = event.data.note;
-            const folder = ensureFloatingNotesFolder();
-
-            console.log('Saving extension note:', noteData);
-
-            const existingIndex = folder.notes.findIndex(n => n.id === noteData.id);
-            
-            const noteToSave = {
-                id: noteData.id,
-                title: noteData.title || 'Floating Note',
-                content: noteData.content || '',
-                color: noteData.color || '#fff9c4',
-                created: noteData.date || new Date().toISOString(),
-                isExtensionNote: true,
-                todos: [],
-                bulletPoints: [],
-                liked: false,
-                timer: null,
-                featuresCollapsed: false
-            };
-
-            if (existingIndex >= 0) {
-                // Update existing note
-                folder.notes[existingIndex] = {
-                    ...folder.notes[existingIndex],
-                    ...noteToSave
-                };
-            } else {
-                // Add new note
-                folder.notes.push(noteToSave);
-            }
-
-            saveData();
-            console.log('Note saved successfully');
-
-            // Refresh UI if viewing this folder
-            if (selectedFolderId === folder.id) {
-                renderNotes();
-            }
-
-            // Send success response back to extension
-            event.source.postMessage({
-                success: true,
-                message: 'Note saved successfully'
-            }, event.origin);
-
-            // Update UI and show notification
-            selectedFolderId = folder.id;
-            renderFolders();
-            renderNotes();
-
-            showToast(`💾 Saved floating note: "${noteData.title}"!`);
+            handleExtensionNote(event.data.note);
         }
     } catch (error) {
         console.error('Error processing extension message:', error);
-        event.source.postMessage({
-            success: false,
-            error: error.message
-        }, event.origin);
     }
 });
 
@@ -768,10 +744,10 @@ window.addEventListener('message', (event) => {
 newFolderBtn.onclick = () => {
     const folderName = prompt('Enter new folder name:');
     if (folderName && folderName.trim()) {
-        const newFolder = { 
-            id: generateId('folder'), 
-            name: folderName.trim(), 
-            notes: [] 
+        const newFolder = {
+            id: generateId('folder'),
+            name: folderName.trim(),
+            notes: []
         };
         data.push(newFolder);
         selectedFolderId = newFolder.id;
@@ -824,14 +800,14 @@ function init() {
     loadData();
     ensureMainFolder();
     ensureFloatingNotesFolder();
-    
+
     if (data.length > 0) {
         selectedFolderId = data[0].id;
     }
-    
+
     renderFolders();
     renderNotes();
-    
+
     console.log('Sticky Notes app initialized');
 }
 
