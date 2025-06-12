@@ -361,7 +361,7 @@ body {
 
 .floating-note-ribbon {
     position: absolute;
-    top: 12px;
+    top: -66px;
     right: -32px;
     background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
     color: white;
