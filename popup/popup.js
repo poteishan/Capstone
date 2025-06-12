@@ -207,13 +207,17 @@ document.getElementById('newNote').addEventListener('click', () => {
 
         const noteId = Date.now().toString();
         const newNote = {
-            id: noteId,
+            id: Date.now().toString(),
             title: '',
             content: '',
+            folder: 'Floating Notes',  // 👈 this is likely missing
             x: 100,
             y: 100,
-            date: new Date().toLocaleString() // Include if using date
+            date: new Date().toLocaleString()
         };
+        if (note.folder === 'Floating Notes') {
+            // show it
+        }
 
         // Save and inject note into webpage
         chrome.storage.local.get({ notes: [] }, ({ notes }) => {
