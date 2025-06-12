@@ -215,9 +215,6 @@ document.getElementById('newNote').addEventListener('click', () => {
             y: 100,
             date: new Date().toLocaleString()
         };
-        if (note.folder === 'Floating Notes') {
-            // show it
-        }
 
         // Save and inject note into webpage
         chrome.storage.local.get({ notes: [] }, ({ notes }) => {
