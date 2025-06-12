@@ -1,52 +1,18 @@
 const FLOATING_NOTES_FOLDER_NAME = "Floating Notes";
 const MAIN_FOLDER_NAME = "Main";
 
-// let data = [
-//     {
-//         id: 'folder-1', name: 'My First Folder', notes: [
-//             {
-//                 id: 'note-1',
-//                 title: 'Shopping List',
-//                 content: '',
-//                 color: '#fffb82',
-//                 created: new Date().toISOString(),
-//                 liked: false,
-//                 todos: [
-//                     { text: 'Buy milk', done: false },
-//                     { text: 'Get eggs', done: true }
-//                 ],
-//                 timer: null,
-//                 bulletPoints: ['Remember to check expiry dates', 'Buy organic if possible'],
-//                 featuresCollapsed: false,
-//             },
-//             {
-//                 id: 'note-2',
-//                 title: 'Work Tasks',
-//                 content: 'Finish report by Friday\nPrepare presentation slides',
-//                 color: '#ffd3b6',
-//                 created: new Date(new Date().getTime() - 2 * 3600000).toISOString(),
-//                 liked: true,
-//                 todos: [],
-//                 timer: { seconds: 1800, running: false, interval: null },
-//                 bulletPoints: [],
-//                 featuresCollapsed: false,
-//             },
-//         ]
-//     },
-// ];
-
-function loadPendingNotes() {
-    // Request pending notes from background
-    chrome.runtime.sendMessage({ action: "getPendingNotes" }, (response) => {
-        if (response.pendingNotes) {
-            response.pendingNotes.forEach(note => {
-                saveExtensionNote(note);
-            });
-            // Clear pending after loading
-            chrome.runtime.sendMessage({ action: "clearPendingNotes" });
-        }
-    });
-}
+// function loadPendingNotes() {
+//     // Request pending notes from background
+//     chrome.runtime.sendMessage({ action: "getPendingNotes" }, (response) => {
+//         if (response.pendingNotes) {
+//             response.pendingNotes.forEach(note => {
+//                 saveExtensionNote(note);
+//             });
+//             // Clear pending after loading
+//             chrome.runtime.sendMessage({ action: "clearPendingNotes" });
+//         }
+//     });
+// }
 
 
 function getFloatingNotesFolder() {
@@ -67,7 +33,7 @@ function getFloatingNotesFolder() {
 // Update the top event listener
 window.addEventListener('message', (event) => {
     // Only accept messages from same origin
-    if (event.origin !== "https://capstone-sigma-eight.vercel.app") return;
+    if (!event.data || event.data.source !== 'sticky-notes-extension') return;
 
     if (event.data && event.data.source === 'sticky-notes-extension' &&
         event.data.action === 'SAVE_NOTE') {
@@ -970,9 +936,19 @@ function init() {
     if (data.length > 0) {
         selectedFolderId = data[0].id;
     }
-    renderFolders();  // Render folder list
-    renderNotes();    // Render notes for selected folder
+    // chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    //     if (request.action === "processPendingNotes" && request.pendingNotes) {
+    //         request.pendingNotes.forEach(note => {
+    //             saveExtensionNote(note);
+    //         });
+    //         renderNotes();
+    //     }
+    // });
+    renderFolders();
+    renderNotes();
+    // loadPendingNotes(); // <- Add this line
 }
+
 
 
 // Handle messages from extension
@@ -1067,9 +1043,11 @@ function ensureFloatingNotesFolder() {
         };
         data.push(folder);
         saveData();
+        renderFolders(); // Add this to update UI
     }
     return folder;
 }
+
 
 
 function saveExtensionNote(noteData) {
@@ -1081,7 +1059,8 @@ function saveExtensionNote(noteData) {
         folder.notes[existingIndex] = {
             ...folder.notes[existingIndex],
             title: noteData.title,
-            content: noteData.content
+            content: noteData.content,
+            created: noteData.date || new Date().toISOString()
         };
     } else {
         // Create new note with required properties
@@ -1092,14 +1071,21 @@ function saveExtensionNote(noteData) {
             color: '#fff9c4',
             created: noteData.date || new Date().toISOString(),
             isExtensionNote: true,
-            todos: [],          // Add this
-            bulletPoints: [],   // Add this
-            liked: false,       // Add this
-            timer: null,        // Add this
-            featuresCollapsed: false  // Add this
+            todos: [],
+            bulletPoints: [],
+            liked: false,
+            timer: null,
+            featuresCollapsed: false
         });
     }
+
     saveData();
+    // Force UI refresh
+    selectedFolderId = folder.id;
+    renderFolders();
+    renderNotes();
+
     return true;
 }
 window.onload = init;
+// setTimeout(loadPendingNotes, 1000); // Give UI time to initialize
