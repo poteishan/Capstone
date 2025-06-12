@@ -6,20 +6,63 @@ function makeDraggable(element, note) {
 
     const header = element.querySelector('.note-header');
     header.addEventListener('mousedown', dragStart);
-    
+    document.getElementById('newNote').addEventListener('click', createNewNote);
+
+    function createNewNote() {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (!tabs[0]?.id) return;
+
+            const noteId = `note-${Date.now()}`;
+            const newNote = {
+                id: noteId,
+                title: 'New Note',
+                content: '',
+                x: 100,
+                y: 100,
+                date: new Date().toLocaleString()
+            };
+
+            // Save note immediately
+            saveNote(newNote);
+
+            // Inject into current tab
+            chrome.scripting.executeScript({
+                target: { tabId: tabs[0].id },
+                func: (note) => {
+                    if (window.createFloatingNote) {
+                        const noteEl = window.createFloatingNote(note);
+                        document.body.appendChild(noteEl);
+                    }
+                },
+                args: [newNote]
+            });
+        });
+    }
+
+    function exposeContentScriptAPI() {
+        chrome.scripting.executeScript({
+            target: { allFrames: true },
+            func: () => {
+                window.createFloatingNote = function (note) {
+                    // Content script implementation here
+                }
+            }
+        });
+    }
+
     function dragStart(e) {
         // Only respond to left mouse button
         if (e.button !== 0) return;
-        
+
         isDragging = true;
         startX = e.clientX;
         startY = e.clientY;
         initialX = parseFloat(element.style.left) || 0;
         initialY = parseFloat(element.style.top) || 0;
-        
+
         // Add dragging class for visual feedback
         element.classList.add('dragging');
-        
+
         document.addEventListener('mousemove', drag);
         document.addEventListener('mouseup', dragEnd);
     }
@@ -27,10 +70,10 @@ function makeDraggable(element, note) {
     function drag(e) {
         if (!isDragging) return;
         e.preventDefault();
-        
+
         const dx = e.clientX - startX;
         const dy = e.clientY - startY;
-        
+
         element.style.left = `${initialX + dx}px`;
         element.style.top = `${initialY + dy}px`;
     }
@@ -39,12 +82,12 @@ function makeDraggable(element, note) {
         if (!isDragging) return;
         isDragging = false;
         element.classList.remove('dragging');
-        
+
         // Update note position
         note.x = parseFloat(element.style.left);
         note.y = parseFloat(element.style.top);
         saveNote(note);
-        
+
         document.removeEventListener('mousemove', drag);
         document.removeEventListener('mouseup', dragEnd);
     }
@@ -56,6 +99,7 @@ function saveNote(note) {
     chrome.storage.local.get(['notes'], ({ notes }) => {
         const updatedNotes = notes.map(n => n.id === note.id ? note : n);
         chrome.storage.local.set({ notes: updatedNotes });
+        chrome.runtime.onInstalled.addListener(exposeContentScriptAPI);
     });
 }
 
