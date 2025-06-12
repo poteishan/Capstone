@@ -94,7 +94,13 @@ window.addEventListener('message', (event) => {
                 content: noteData.content || '',
                 color: '#fff9c4',
                 created: noteData.date || new Date().toISOString(),
-                isExtensionNote: true
+                isExtensionNote: true,
+                // FIX: Add default empty arrays for missing properties
+                todos: [],
+                bulletPoints: [],
+                liked: false,
+                timer: null,
+                featuresCollapsed: false
             });
         }
 
@@ -637,6 +643,10 @@ newFolderBtn.onclick = () => {
 // Add new note in selected folder
 addNoteBtn.onclick = () => {
     if (!selectedFolderId) return;
+
+    // FIX: Clear the search input to ensure the new note is visible
+    searchInput.value = '';
+
     const folder = data.find(f => f.id === selectedFolderId);
     const newNote = {
         id: generateId('note'),
@@ -651,10 +661,9 @@ addNoteBtn.onclick = () => {
         featuresCollapsed: false,
     };
     folder.notes.push(newNote);
-    renderNotes();
+    renderNotes(); // Now runs with an empty search query
     saveData();
 };
-
 
 // Remove any duplicate showExpandedNote functions
 // Keep only ONE version:
