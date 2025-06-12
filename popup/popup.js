@@ -15,8 +15,10 @@ function makeDraggable(element, note) {
             const noteId = `note-${Date.now()}`;
             const newNote = {
                 id: noteId,
-                title: 'New Note',
+                title: '',
                 content: '',
+                folder: 'Floating Notes',
+                tags: [], // ✅ add this to avoid undefined.map error
                 x: 100,
                 y: 100,
                 date: new Date().toLocaleString()
@@ -215,6 +217,7 @@ document.getElementById('newNote').addEventListener('click', () => {
             y: 100,
             date: new Date().toLocaleString()
         };
+
 
         // Save and inject note into webpage
         chrome.storage.local.get({ notes: [] }, ({ notes }) => {
