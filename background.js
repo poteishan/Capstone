@@ -48,40 +48,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const note = request.note;
 
     if (appTabId) {
-      chrome.scripting.executeScript({
-        target: { tabId: appTabId },
-        func: (note) => {
-          window.postMessage({
-            source: 'sticky-notes-extension',
-            action: "SAVE_NOTE",
-            note: note
-          }, "https://capstone-sigma-eight.vercel.app");
+      chrome.tabs.sendMessage(
+        appTabId,
+        {
+          action: "SAVE_NOTE_RELAY",
+          note: note
         },
-        args: [note]
-      }, () => {
-        if (chrome.runtime.lastError) {
-          saveAsPending(note);
-          sendResponse({ success: false });
-        } else {
-          sendResponse({ success: true });
+        (response) => {
+          if (chrome.runtime.lastError) {
+            saveAsPending(note);
+            sendResponse({ success: false });
+          } else {
+            sendResponse({ success: true });
+          }
         }
-
-        if (request.action === "processPendingNotes") {
-          // This will be handled in app.js
-          return true;
-        }
-
-        return true;
-      });
-
-      return true; // Keep message channel open
+      );
     } else {
       saveAsPending(note);
       sendResponse({ success: false });
-      return true;
     }
+    return true; // Keep message channel open
   }
-  return true;
 });
 
 function saveAsPending(note) {
