@@ -29,29 +29,19 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 // Send pending notes to app
 function sendPendingNotes() {
   if (pendingNotes.length > 0 && appTabId) {
-    console.log('Sending pending notes:', pendingNotes.length);
-
-    // Send each note individually
-    pendingNotes.forEach(note => {
-      chrome.scripting.executeScript({
-        target: { tabId: appTabId },
-        func: (note) => {
-          window.postMessage({
-            source: 'sticky-notes-extension',
-            action: "SAVE_NOTE",
-            note: note
-          }, "https://capstone-sigma-eight.vercel.app");
-        },
-        args: [note]
-      }, () => {
-        // Remove from pending regardless of success
-        pendingNotes = pendingNotes.filter(n => n.id !== note.id);
+    chrome.tabs.sendMessage(
+      appTabId,
+      {
+        action: "processPendingNotes",
+        pendingNotes: pendingNotes
+      },
+      () => {
+        pendingNotes = [];
         chrome.storage.local.set({ pendingNotes });
-      });
-    });
+      }
+    );
   }
 }
-
 // Handle communication
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "saveNoteToApp") {
@@ -75,6 +65,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         } else {
           sendResponse({ success: true });
         }
+
+        if (request.action === "processPendingNotes") {
+          // This will be handled in app.js
+          return true;
+        }
+
+        return true;
       });
 
       return true; // Keep message channel open
