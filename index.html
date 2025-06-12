@@ -1,46 +1,49 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Floating notes</title>
-  <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
-    integrity="sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg=="
-    crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sticky Notes - Professional Note Taking</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <meta name="description" content="A professional sticky notes application for organizing your thoughts and tasks">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📝</text></svg>">
 </head>
-
 <body>
-  <div id="sidebar" aria-label="Folders sidebar">
-    <h1>Notes</h1>
-    <div id="folder-list" role="list" tabindex="0">
-    </div>
-    <button id="new-folder-btn" aria-label="Add new folder">+ New Folder</button>
-  </div>
-  <div class="change" id="main-content" aria-live="polite" aria-atomic="true">
-    <div id="header">
-      <button id="hamburger" class="hamburger" aria-label="Toggle sidebar">
-        <span class="hamburger-box">
-          <span class="hamburger-inner"></span>
-        </span>
-      </button>
-      <h2 id="folder-title">Select a folder</h2>
-      <button id="add-note-btn" disabled aria-label="Add new note in selected folder">+ Add Note</button>
-      <div id="search-container">
-        <input type="search" id="search-input" aria-label="Search notes" placeholder="Search notes..." />
-        <span id="search-icon" aria-hidden="true">🔍</span>
-      </div>
-    </div>
-    <div id="notes-container"></div>
-  </div>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
-  <script src="auth.js"></script>
-  <script src="app.js"></script>
+    <!-- Sidebar -->
+    <aside id="sidebar" aria-label="Folders sidebar">
+        <h1><i class="fas fa-sticky-note"></i> Notes</h1>
+        <div id="folder-list" role="list" tabindex="0" aria-label="Folder list">
+        </div>
+        <button id="new-folder-btn" aria-label="Add new folder">
+            <i class="fas fa-folder-plus"></i> New Folder
+        </button>
+    </aside>
+
+    <!-- Main Content -->
+    <main id="main-content" aria-live="polite" aria-atomic="true">
+        <header id="header">
+            <button id="hamburger" class="hamburger" aria-label="Toggle sidebar" aria-expanded="false">
+                <span class="hamburger-box">
+                    <span class="hamburger-inner"></span>
+                </span>
+            </button>
+            
+            <h2 id="folder-title">Select a folder</h2>
+            
+            <div id="search-container">
+                <input type="search" id="search-input" aria-label="Search notes" placeholder="Search notes..." autocomplete="off">
+                <i id="search-icon" class="fas fa-search" aria-hidden="true"></i>
+            </div>
+            
+            <button id="add-note-btn" disabled aria-label="Add new note in selected folder">
+               Add Note
+            </button>
+        </header>
+        
+        <section id="notes-container" aria-label="Notes"></section>
+    </main>
+
+    <script src="app.js"></script>
 </body>
-
 </html>
-
-
-<!-- Still not getting saved. Should we have to host the website domain or check the domain in manifes or background js, app.js or content.js, popup.js check all and tell me wheteher this error can be fixed, still message showing Note saved locally. Will sync when app opens. still shows this error when i open the website, still can't show me the notes saved from the floating note extenstion -->
