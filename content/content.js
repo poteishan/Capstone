@@ -1,3 +1,6 @@
+
+window.createFloatingNote = createFloatingNote;
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "createNote") {
         const noteEl = createFloatingNote(request.note);
@@ -5,8 +8,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         saveNote(request.note);
     }
 });
-
-console.log('Content script loaded on:', window.location.href);
 
 // Load existing notes on page load
 chrome.storage.local.get(['notes'], ({ notes = [] }) => {
@@ -139,33 +140,26 @@ function createFloatingNote(note) {
         });
     });
 
-    saveBtn.addEventListener('click', async () => {
-  const noteData = {
-    id: note.id,
-    title: titleInput.value.trim(),
-    content: contentEl.innerText, // Use text content
-    date: note.date || new Date().toLocaleString()
-  };
-  
-  try {
-    chrome.runtime.sendMessage({
-      action: "saveNoteToApp",
-      note: noteData
-    }, (response) => {
-      if (response && response.success) {
-        showToast('Note saved to Floating Notes folder!');
-        // Visual feedback
-        noteEl.classList.add('note-saved');
-        setTimeout(() => noteEl.classList.remove('note-saved'), 2000);
-      } else {
-        showToast('Note saved locally. Will sync when app opens.');
-      }
+    saveBtn.addEventListener('click', () => {
+        const noteData = {
+            id: note.id,
+            title: titleInput.value.trim(),
+            content: contentEl.innerText,  // Use text content
+            date: note.date || new Date().toLocaleString()
+        };
+
+        chrome.runtime.sendMessage({
+            action: "saveNoteToApp",
+            note: noteData
+        }, (response) => {
+            if (response?.success) {
+                showToast('Note saved to Floating Notes folder!');
+                noteEl.classList.add('note-saved');
+            } else {
+                showToast('Note saved locally. Will sync when app opens.');
+            }
+        });
     });
-  } catch (error) {
-    console.error('Save error:', error);
-    showToast('Error saving note');
-  }
-});
     // New function to save locally
     function saveNoteLocally(note) {
         chrome.storage.local.get(['localNotes'], ({ localNotes = [] }) => {
