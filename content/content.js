@@ -1,5 +1,6 @@
 
 window.createFloatingNote = createFloatingNote;
+// window.postMessage({...}, "https://capstone-sigma-eight.vercel.app");
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "createNote") {
@@ -144,9 +145,10 @@ function createFloatingNote(note) {
         const noteData = {
             id: note.id,
             title: titleInput.value.trim(),
-            content: contentEl.innerText,  // Use text content
-            date: note.date || new Date().toLocaleString()
+            content: contentEl.innerText,
+            date: new Date().toISOString() // Use ISO format instead of locale string
         };
+
 
         chrome.runtime.sendMessage({
             action: "saveNoteToApp",
