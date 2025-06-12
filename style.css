@@ -361,7 +361,7 @@ body {
 
 .floating-note-ribbon {
     position: absolute;
-    top: -66px;
+    top: 12px;
     right: -32px;
     background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
     color: white;
@@ -442,6 +442,7 @@ body {
 }
 
 .note-content[contenteditable="true"] {
+    width:330px;
     border: 2px dashed var(--primary-color);
     border-radius: var(--border-radius-sm);
     padding: 12px;
