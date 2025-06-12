@@ -291,15 +291,15 @@ function renderNotes() {
 
 // Create sticky note element
 function createNoteElement(note, folder) {
-    note.todos = note.todos || [];
-    note.bulletPoints = note.bulletPoints || [];
+    // note.todos = note.todos || [];
+    // note.bulletPoints = note.bulletPoints || [];
 
-    // Simplified contentParts creation
-    const contentParts = [
-        note.content,
-        ...note.todos.map(t => `☐ ${t.text}`),
-        ...note.bulletPoints.map(b => `• ${b}`)
-    ];
+    // // Simplified contentParts creation
+    // const contentParts = [
+    //     note.content,
+    //     ...note.todos.map(t => `☐ ${t.text}`),
+    //     ...note.bulletPoints.map(b => `• ${b}`)
+    // ];
 
     const noteEl = document.createElement('article');
     noteEl.className = 'sticky-note';
