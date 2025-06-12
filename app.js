@@ -287,6 +287,9 @@ function renderNotes() {
 
 // Create sticky note element
 function createNoteElement(note, folder) {
+    (note.tags || []).map(tag => {
+        // do something
+    });
     const contentParts = [
         note.content,
         ...(note.todos || []).map(t => `☐ ${t.text}`),
