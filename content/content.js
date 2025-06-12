@@ -327,3 +327,14 @@ function saveNote(note) {
         chrome.storage.local.set({ notes });
     });
 }
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === "SAVE_NOTE_RELAY") {
+        window.postMessage({
+            source: 'sticky-notes-extension',
+            action: "SAVE_NOTE",
+            note: message.note
+        }, "*");
+    }
+    return true;
+});
