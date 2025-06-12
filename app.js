@@ -1,6 +1,5 @@
 const FLOATING_NOTES_FOLDER_NAME = "Floating Notes";
 const MAIN_FOLDER_NAME = "Main";
-console.log('App script loaded');
 
 // let data = [
 //     {
@@ -925,22 +924,6 @@ function ensureMainFolder() {
     return folder;
 }
 
-function ensureFloatingNotesFolder() {
-    let folder = data.find(f => f.name === FLOATING_NOTES_FOLDER_NAME);
-    if (!folder) {
-        folder = {
-            id: 'folder-floating',
-            name: FLOATING_NOTES_FOLDER_NAME,
-            notes: [],
-            isExtensionFolder: true
-        };
-        data.push(folder);
-        saveData();
-        console.log('Created Floating Notes folder');
-    }
-    return folder;
-}
-
 function createSaveButton(onSave) {
     const saveBtn = document.createElement('button');
     saveBtn.textContent = 'Save Changes';
@@ -983,49 +966,41 @@ function init() {
 
 // Handle messages from extension
 window.addEventListener('message', (event) => {
-  // Accept messages from extension
-  if (event.data.type === 'FROM_EXTENSION' && event.data.action === 'SAVE_NOTE') {
-    const noteData = event.data.note;
-    const folder = ensureFloatingNotesFolder();
-    
-    console.log('Saving extension note:', noteData.id);
-    
-    // Create/update note
-    const existingIndex = folder.notes.findIndex(n => n.id === noteData.id);
-    if (existingIndex >= 0) {
-      // Update existing note
-      folder.notes[existingIndex] = {
-        ...folder.notes[existingIndex],
-        title: noteData.title,
-        content: noteData.content
-      };
-    } else {
-      // Add new note
-      folder.notes.push({
-        id: noteData.id,
-        title: noteData.title || 'Floating Note',
-        content: noteData.content || '',
-        color: '#fff9c4',
-        created: noteData.date || new Date().toISOString(),
-        isExtensionNote: true
-      });
+    if (event.data.source === 'sticky-notes-extension' &&
+        event.data.action === 'SAVE_NOTE') {
+
+        const noteData = event.data.note;
+        const folder = ensureFloatingNotesFolder();
+
+        // Create/update note
+        const existingIndex = folder.notes.findIndex(n => n.id === noteData.id);
+        if (existingIndex >= 0) {
+            folder.notes[existingIndex] = {
+                ...folder.notes[existingIndex],
+                title: noteData.title,
+                content: noteData.content
+            };
+        } else {
+            folder.notes.push({
+                id: noteData.id,
+                title: noteData.title || 'Floating Note',
+                content: noteData.content || '',
+                color: '#fff9c4',
+                created: noteData.date || new Date().toISOString(),
+                isExtensionNote: true
+            });
+        }
+
+        saveData();
+
+        // Send response back to extension
+        event.source.postMessage({ success: true }, event.origin);
+
+        // Refresh UI
+        if (selectedFolderId === folder.id) {
+            renderNotes();
+        }
     }
-    
-    saveData();
-    console.log('Note saved to folder:', noteData.id);
-    
-    // Refresh UI if viewing this folder
-    if (selectedFolderId === folder.id) {
-      renderNotes();
-    }
-    
-    // Send response back to extension
-    event.source.postMessage({ 
-      success: true 
-    }, event.origin);
-    
-    showToast(`Saved floating note to "${folder.name}" folder!`);
-  }
 });
 
 function saveExtensionNote(noteData) {
@@ -1071,12 +1046,11 @@ function saveExtensionNote(noteData) {
 }
 
 function ensureFloatingNotesFolder() {
-    const folderName = "Floating Notes";
-    let folder = data.find(f => f.name === folderName);
+    let folder = data.find(f => f.name === FLOATING_NOTES_FOLDER_NAME);
     if (!folder) {
         folder = {
             id: 'folder-floating',
-            name: folderName,
+            name: FLOATING_NOTES_FOLDER_NAME,
             notes: [],
             isExtensionFolder: true
         };
@@ -1085,7 +1059,6 @@ function ensureFloatingNotesFolder() {
     }
     return folder;
 }
-
 
 
 function saveExtensionNote(noteData) {
