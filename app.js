@@ -291,16 +291,15 @@ function renderNotes() {
 
 // Create sticky note element
 function createNoteElement(note, folder) {
-    (note.tags || []).map(tag => {
-        // do something
-    });
+    note.todos = note.todos || [];
+    note.bulletPoints = note.bulletPoints || [];
+
+    // Simplified contentParts creation
     const contentParts = [
         note.content,
-        ...(note.todos || []).map(t => `☐ ${t.text}`),
-        ...(note.bulletPoints || []).map(b => `• ${b}`)
+        ...note.todos.map(t => `☐ ${t.text}`),
+        ...note.bulletPoints.map(b => `• ${b}`)
     ];
-    if (!note.todos) note.todos = [];
-    if (!note.bulletPoints) note.bulletPoints = [];
 
     const noteEl = document.createElement('article');
     noteEl.className = 'sticky-note';
@@ -1106,7 +1105,7 @@ window.onload = init;
 // setTimeout(loadPendingNotes, 1000); // Give UI time to initialize
 
 
-// This map fucntion is not working properly 
+// This map fucntion is not working properly
 
 // ...note.todos.map(t => `☐ ${t.text}`),
 //         ...note.bulletPoints.map(b => `• ${b}`)
