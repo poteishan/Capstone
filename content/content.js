@@ -146,21 +146,14 @@ function createFloatingNote(note) {
             id: note.id,
             title: titleInput.value.trim(),
             content: contentEl.innerText,
-            date: new Date().toISOString() // Use ISO format instead of locale string
+            date: new Date().toISOString()
         };
 
-
-        chrome.runtime.sendMessage({
-            action: "saveNoteToApp",
+        window.postMessage({
+            source: 'sticky-notes-extension',
+            action: 'SAVE_NOTE',
             note: noteData
-        }, (response) => {
-            if (response?.success) {
-                showToast('Note saved to Floating Notes folder!');
-                noteEl.classList.add('note-saved');
-            } else {
-                showToast('Note saved locally. Will sync when app opens.');
-            }
-        });
+        }, "*");
     });
     // New function to save locally
     function saveNoteLocally(note) {
