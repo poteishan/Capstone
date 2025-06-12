@@ -1,113 +1,8 @@
 const FLOATING_NOTES_FOLDER_NAME = "Floating Notes";
 const MAIN_FOLDER_NAME = "Main";
 
-// function loadPendingNotes() {
-//     // Request pending notes from background
-//     chrome.runtime.sendMessage({ action: "getPendingNotes" }, (response) => {
-//         if (response.pendingNotes) {
-//             response.pendingNotes.forEach(note => {
-//                 saveExtensionNote(note);
-//             });
-//             // Clear pending after loading
-//             chrome.runtime.sendMessage({ action: "clearPendingNotes" });
-//         }
-//     });
-// }
-
-
-function getFloatingNotesFolder() {
-    let folder = data.find(f => f.name === FLOATING_NOTES_FOLDER_NAME);
-    if (!folder) {
-        folder = {
-            id: 'folder-floating', // Fixed ID for consistency
-            name: FLOATING_NOTES_FOLDER_NAME,
-            notes: [],
-            isExtensionFolder: true
-        };
-        data.push(folder);
-        saveData();
-        renderFolders();
-    }
-    return folder;
-}
-// Update the top event listener
-window.addEventListener('message', (event) => {
-    // Only accept messages from same origin
-    try {
-        if (!event.data || event.data.source !== 'sticky-notes-extension') return;
-
-        if (event.data && event.data.source === 'sticky-notes-extension' &&
-            event.data.action === 'SAVE_NOTE') {
-
-            const noteData = event.data.note;
-            const folder = ensureFloatingNotesFolder();
-
-            console.log('Saving extension note:', noteData.id);
-
-            // Create/update note
-            const existingIndex = folder.notes.findIndex(n => n.id === noteData.id);
-            if (existingIndex >= 0) {
-                // Update existing note
-                folder.notes[existingIndex] = {
-                    ...folder.notes[existingIndex],
-                    title: noteData.title,
-                    content: noteData.content
-                };
-            } else {
-                // Add new note
-                folder.notes.push({
-                    id: noteData.id,
-                    title: noteData.title || 'Floating Note',
-                    content: noteData.content || '',
-                    color: '#fff9c4',
-                    created: noteData.date || new Date().toISOString(),
-                    isExtensionNote: true,
-                    // FIX: Add default empty arrays for missing properties
-                    todos: [],
-                    bulletPoints: [],
-                    liked: false,
-                    timer: null,
-                    featuresCollapsed: false
-                });
-            }
-
-            saveData();
-            console.log('Note saved to folder:', noteData.id);
-
-            // Refresh UI if viewing this folder
-            if (selectedFolderId === folder.id) {
-                renderNotes();
-            }
-
-            // Send response back to extension
-            event.source.postMessage({
-                success: true
-            }, event.origin);
-
-            // Update UI
-            selectedFolderId = folder.id;
-            renderFolders();
-            renderNotes();
-
-            showToast(`Saved floating note to "${folder.name}" folder!`);
-        }
-    } catch (error) {
-        console.error('Error processing message:', error);
-    }
-});
-
-function showToast(message) {
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.textContent = message;
-    document.body.appendChild(toast);
-
-    setTimeout(() => {
-        if (toast.parentNode) {
-            toast.parentNode.removeChild(toast);
-        }
-    }, 2000);
-}
+// Initialize data structure
+let data = [];
 
 // Currently selected folder id
 let selectedFolderId = null;
@@ -128,15 +23,21 @@ function formatDateTime(dateStr) {
 function saveData() {
     try {
         localStorage.setItem('stickyNotesData', JSON.stringify(data));
-    } catch { }
+    } catch (error) {
+        console.error('Error saving data:', error);
+    }
 }
+
 function loadData() {
     try {
         const stored = localStorage.getItem('stickyNotesData');
         if (stored) {
             data = JSON.parse(stored);
         }
-    } catch { }
+    } catch (error) {
+        console.error('Error loading data:', error);
+        data = [];
+    }
 }
 
 // DOM Elements cache
@@ -146,10 +47,29 @@ const notesContainer = document.getElementById('notes-container');
 const addNoteBtn = document.getElementById('add-note-btn');
 const newFolderBtn = document.getElementById('new-folder-btn');
 const searchInput = document.getElementById('search-input');
+const hamburger = document.getElementById('hamburger');
+const sidebar = document.getElementById('sidebar');
+const overlay = document.createElement('div');
+
+// Setup overlay
+overlay.className = 'overlay';
+document.body.appendChild(overlay);
+
+// Hamburger menu functionality
+hamburger.addEventListener('click', () => {
+    sidebar.classList.toggle('sidebar-visible');
+    overlay.classList.toggle('sidebar-visible');
+    hamburger.classList.toggle('active');
+});
+
+overlay.addEventListener('click', () => {
+    sidebar.classList.remove('sidebar-visible');
+    overlay.classList.remove('sidebar-visible');
+    hamburger.classList.remove('active');
+});
 
 // Render folders list
 function renderFolders() {
-    // Always render the folder list
     folderListDiv.innerHTML = '';
 
     data.forEach(folder => {
@@ -157,6 +77,7 @@ function renderFolders() {
         let className = 'folder-item';
         if (folder.id === selectedFolderId) className += ' active';
         if (folder.isExtensionFolder) className += ' floating-notes';
+        if (folder.isMainFolder) className += ' main-folder';
         div.className = className;
 
         const folderNameSpan = document.createElement('span');
@@ -168,8 +89,14 @@ function renderFolders() {
 
         div.onclick = () => {
             selectedFolderId = folder.id;
-            renderFolders();  // Update folder highlighting
-            renderNotes();    // Render notes for selected folder
+            renderFolders();
+            renderNotes();
+            // Close sidebar on mobile after selection
+            if (window.innerWidth <= 700) {
+                sidebar.classList.remove('sidebar-visible');
+                overlay.classList.remove('sidebar-visible');
+                hamburger.classList.remove('active');
+            }
         };
 
         folderNameSpan.onkeydown = (e) => {
@@ -181,28 +108,29 @@ function renderFolders() {
 
         div.appendChild(folderNameSpan);
 
-        // Delete button for folder
-        const canDelete = data.length > 1;
-        const delBtn = document.createElement('button');
-        delBtn.className = 'folder-delete-btn';
-        delBtn.title = 'Delete folder';
-        delBtn.setAttribute('aria-label', 'Delete folder ' + folder.name);
-        delBtn.disabled = !canDelete;
-        delBtn.textContent = '×';
-        delBtn.onclick = (e) => {
-            e.stopPropagation();
-            if (confirm(`Are you sure you want to delete the folder "${folder.name}" and all its notes?`)) {
-                data = data.filter(f => f.id !== folder.id);
-                if (selectedFolderId === folder.id) {
-                    selectedFolderId = data.length ? data[0].id : null;
+        // Delete button for folder (only if more than 1 folder and not Main folder)
+        const canDelete = data.length > 1 && !folder.isMainFolder;
+        if (canDelete) {
+            const delBtn = document.createElement('button');
+            delBtn.className = 'folder-delete-btn';
+            delBtn.title = 'Delete folder';
+            delBtn.setAttribute('aria-label', 'Delete folder ' + folder.name);
+            delBtn.textContent = '×';
+            delBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (confirm(`Are you sure you want to delete the folder "${folder.name}" and all its notes?`)) {
+                    data = data.filter(f => f.id !== folder.id);
+                    if (selectedFolderId === folder.id) {
+                        selectedFolderId = data.length ? data[0].id : null;
+                    }
+                    renderFolders();
+                    renderNotes();
+                    saveData();
                 }
-                renderFolders();
-                renderNotes();
-                saveData();
-            }
-        };
+            };
+            div.appendChild(delBtn);
+        }
 
-        div.appendChild(delBtn);
         folderListDiv.appendChild(div);
     });
 }
@@ -211,12 +139,18 @@ function renderFolders() {
 function renderNotes() {
     if (!selectedFolderId) {
         folderTitleEl.textContent = 'Select a folder';
-        notesContainer.innerHTML = '';
+        notesContainer.innerHTML = '<div class="empty-state"><i class="fas fa-folder-open"></i><p>Select a folder to view notes</p></div>';
         addNoteBtn.disabled = true;
         return;
     }
 
     const folder = data.find(f => f.id === selectedFolderId);
+    if (!folder) {
+        folderTitleEl.textContent = 'Folder not found';
+        notesContainer.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Folder not found</p></div>';
+        addNoteBtn.disabled = true;
+        return;
+    }
 
     // Handle Main folder view
     if (folder.isMainFolder) {
@@ -227,7 +161,7 @@ function renderNotes() {
         let allNotes = [];
         data.forEach(f => {
             if (!f.isMainFolder && f.notes) {
-                allNotes = allNotes.concat(f.notes);
+                allNotes = allNotes.concat(f.notes.map(note => ({...note, folderName: f.name})));
             }
         });
 
@@ -241,18 +175,12 @@ function renderNotes() {
         notesContainer.innerHTML = '';
 
         if (filteredNotes.length === 0) {
-            const noNoteMsg = document.createElement('p');
-            noNoteMsg.textContent = 'No notes found';
-            noNoteMsg.style.color = '#555';
-            notesContainer.appendChild(noNoteMsg);
+            notesContainer.innerHTML = '<div class="empty-state"><i class="fas fa-sticky-note"></i><p>No notes found</p></div>';
             return;
         }
 
         filteredNotes.forEach(note => {
-            // Find which folder this note belongs to
-            const parentFolder = data.find(f =>
-                f.notes && f.notes.some(n => n.id === note.id)
-            );
+            const parentFolder = data.find(f => f.notes && f.notes.some(n => n.id === note.id));
             notesContainer.appendChild(createNoteElement(note, parentFolder));
         });
         return;
@@ -262,25 +190,31 @@ function renderNotes() {
     folderTitleEl.textContent = folder.name;
     addNoteBtn.disabled = false;
 
+    // Initialize notes array if it doesn't exist
+    if (!folder.notes) {
+        folder.notes = [];
+    }
+
     // Filter notes based on search query
     const query = searchInput.value.toLowerCase();
-
-    if (!folder.notes) folder.notes = [];
-
     const filteredNotes = folder.notes.filter(note => {
+        const safeTodos = Array.isArray(note.todos) ? note.todos : [];
+        const safeBulletPoints = Array.isArray(note.bulletPoints) ? note.bulletPoints : [];
+        
         return note.title.toLowerCase().includes(query) ||
             note.content.toLowerCase().includes(query) ||
-            (note.bulletPoints && note.bulletPoints.some(bp => bp.toLowerCase().includes(query))) ||
-            (note.todos && note.todos.some(todo => todo.text.toLowerCase().includes(query)));
+            safeBulletPoints.some(bp => bp.toLowerCase().includes(query)) ||
+            safeTodos.some(todo => todo.text && todo.text.toLowerCase().includes(query));
     });
 
     notesContainer.innerHTML = '';
 
     if (filteredNotes.length === 0) {
-        const noNoteMsg = document.createElement('p');
-        noNoteMsg.textContent = 'No notes found';
-        noNoteMsg.style.color = '#555';
-        notesContainer.appendChild(noNoteMsg);
+        if (folder.notes.length === 0) {
+            notesContainer.innerHTML = '<div class="empty-state"><i class="fas fa-plus-circle"></i><p>No notes yet. Click "Add Note" to create your first note!</p></div>';
+        } else {
+            notesContainer.innerHTML = '<div class="empty-state"><i class="fas fa-search"></i><p>No notes match your search</p></div>';
+        }
         return;
     }
 
@@ -289,45 +223,31 @@ function renderNotes() {
     });
 }
 
-// Create sticky note element
+// Create sticky note element with improved error handling
 function createNoteElement(note, folder) {
-    const todos = Array.isArray(note.todos) ? note.todos : [];
-    const bulletPoints = Array.isArray(note.bulletPoints) ? note.bulletPoints : [];
-
+    // Safely handle todos and bulletPoints with proper defaults
+    const safeTodos = Array.isArray(note.todos) ? note.todos : [];
+    const safeBulletPoints = Array.isArray(note.bulletPoints) ? note.bulletPoints : [];
+    
+    // Build content parts safely
     const contentParts = [
-        note.content,
-        ...todos.map(t => `☐ ${t.text}`),
-        ...bulletPoints.map(b => `• ${b}`)
-    ];
+        note.content || '',
+        ...safeTodos.map(t => `☐ ${t.text || ''}`),
+        ...safeBulletPoints.map(b => `• ${b}`)
+    ].filter(part => part.trim() !== '');
 
     const noteEl = document.createElement('article');
     noteEl.className = 'sticky-note';
-    noteEl.style.backgroundColor = note.color;
+    noteEl.style.backgroundColor = note.color || '#fffb82';
     noteEl.setAttribute('aria-label', `Note titled ${note.title}`);
 
     if (note.isExtensionNote) {
         noteEl.classList.add('floating-note-saved');
         const ribbon = document.createElement('div');
         ribbon.className = 'floating-note-ribbon';
-        ribbon.textContent = 'From Extension';
+        ribbon.innerHTML = '<i class="fas fa-cloud"></i> From Extension';
         noteEl.appendChild(ribbon);
     }
-
-    // Delete button for note top right corner
-    const noteDelBtn = document.createElement('button');
-    noteDelBtn.className = 'note-delete-btn';
-    noteDelBtn.title = 'Delete note';
-    noteDelBtn.setAttribute('aria-label', `Delete note titled ${note.title}`);
-    noteDelBtn.onclick = (e) => {
-        e.stopPropagation();
-        if (confirm(`Are you sure you want to delete the note "${note.title}"?`)) {
-            // Remove note from folder.notes
-            folder.notes = folder.notes.filter(n => n.id !== note.id);
-            renderNotes();
-            saveData();
-        }
-    };
-
 
     // Note header
     const header = document.createElement('div');
@@ -336,7 +256,7 @@ function createNoteElement(note, folder) {
     // Title
     const titleEl = document.createElement('div');
     titleEl.className = 'note-title';
-    titleEl.textContent = note.title;
+    titleEl.textContent = note.title || 'Untitled Note';
     titleEl.tabIndex = 0;
     titleEl.setAttribute('role', 'textbox');
     titleEl.setAttribute('aria-multiline', 'false');
@@ -352,39 +272,25 @@ function createNoteElement(note, folder) {
     // Date created
     const createdEl = document.createElement('div');
     createdEl.className = 'note-created';
-    createdEl.textContent = formatDateTime(note.created);
+    createdEl.innerHTML = `<i class="far fa-clock"></i> ${formatDateTime(note.created)}`;
 
     // Like button
     const likeBtn = document.createElement('button');
     likeBtn.className = 'like-btn';
-    likeBtn.innerHTML = note.liked ? '❤️' : '🤍';
+    likeBtn.innerHTML = note.liked ? '<i class="fas fa-heart"></i>' : '<i class="far fa-heart"></i>';
     likeBtn.title = note.liked ? 'Unlike note' : 'Like note';
     likeBtn.setAttribute('aria-pressed', note.liked);
     likeBtn.onclick = () => {
         note.liked = !note.liked;
-        likeBtn.innerHTML = note.liked ? '❤️' : '🤍';
+        likeBtn.innerHTML = note.liked ? '<i class="fas fa-heart"></i>' : '<i class="far fa-heart"></i>';
         likeBtn.setAttribute('aria-pressed', note.liked);
         likeBtn.title = note.liked ? 'Unlike note' : 'Like note';
         saveData();
     };
 
-    // Color picker
-    const colorInput = document.createElement('input');
-    colorInput.type = 'color';
-    colorInput.className = 'color-picker';
-    colorInput.title = 'Change note color';
-    colorInput.value = rgbToHex(note.color);
-    colorInput.oninput = (e) => {
-        note.color = e.target.value;
-        noteEl.style.backgroundColor = note.color;
-        saveData();
-    };
-    // noteEl.appendChild(colorInput)
-
     header.appendChild(titleEl);
     header.appendChild(createdEl);
     header.appendChild(likeBtn);
-    noteEl.appendChild(header);
 
     // Content area (editable)
     const contentEl = document.createElement('div');
@@ -406,82 +312,96 @@ function createNoteElement(note, folder) {
         }
     };
 
-    noteEl.appendChild(contentEl);
+    // Add dropdown menu
+    const dropdownContainer = document.createElement('div');
+    dropdownContainer.className = 'note-dropdown';
 
-    // Add this code in app.txt (near other utility functions)
-    // Replace existing shareNote and noteToText functions with:
-    function shareNote(note) {
-        const formattedText = noteToText(note);
+    const dropBtn = document.createElement('button');
+    dropBtn.className = 'note-dropbtn';
+    dropBtn.innerHTML = '<i class="fas fa-ellipsis-v"></i>';
+    dropBtn.setAttribute('aria-label', 'Note options');
 
-        if (navigator.share) {
-            navigator.share({
-                title: `Note: ${note.title}`,
-                text: formattedText
-            }).catch(error => {
-                console.log('Sharing failed:', error);
-                copyToClipboardFallback(formattedText);
-            });
-        } else {
-            copyToClipboardFallback(formattedText);
+    const dropdownContent = document.createElement('div');
+    dropdownContent.className = 'note-dropdown-content';
+
+    // Delete button for note
+    const noteDelBtn = document.createElement('button');
+    noteDelBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (confirm(`Are you sure you want to delete the note "${note.title}"?`)) {
+            folder.notes = folder.notes.filter(n => n.id !== note.id);
+            renderNotes();
+            saveData();
         }
-    }
+    };
 
-    function noteToText(note) {
-        const sections = [];
+    // Color picker
+    const colorInput = document.createElement('input');
+    colorInput.type = 'color';
+    colorInput.className = 'color-picker';
+    colorInput.title = 'Change note color';
+    colorInput.value = rgbToHex(note.color || '#fffb82');
+    colorInput.oninput = (e) => {
+        note.color = e.target.value;
+        noteEl.style.backgroundColor = note.color;
+        saveData();
+    };
 
-        // Header
-        sections.push(`📝 ${note.title}`);
-        sections.push('━'.repeat(note.title.length + 2));
-
-        // Main Content
-        if (note.content) sections.push(`\n${note.content}\n`);
-
-        // Todos
-        if (note.todos.length > 0) {
-            sections.push('\n✅ To-Dos:');
-            note.todos.forEach(todo => {
-                sections.push(`▢ ${todo.done ? '✓' : ' '} ${todo.text}`);
-            });
+    // Dropdown items
+    const menuItems = [
+        {
+            text: '<i class="fas fa-expand-alt"></i> Expand',
+            action: () => showExpandedNote(note, folder)
+        },
+        {
+            text: '<i class="fas fa-share-alt"></i> Share',
+            action: () => shareNote(note)
+        },
+        {
+            text: '<i class="fas fa-palette"></i> Change color',
+            action: () => colorInput.click()
+        },
+        {
+            text: '<i class="fas fa-copy"></i> Duplicate',
+            action: () => duplicateNote(note, folder)
+        },
+        {
+            text: '<i class="fas fa-trash"></i> Delete',
+            action: () => noteDelBtn.click(),
+            className: 'delete-item'
         }
+    ];
 
-        // Bullet Points
-        if (note.bulletPoints.length > 0) {
-            sections.push('\n🔹 Key Points:');
-            sections.push(...note.bulletPoints.map(bp => `• ${bp}`));
-        }
+    menuItems.forEach(item => {
+        const button = document.createElement('button');
+        button.innerHTML = item.text;
+        if (item.className) button.className = item.className;
+        button.onclick = (e) => {
+            e.stopPropagation();
+            item.action();
+            dropdownContent.classList.remove('show');
+        };
+        dropdownContent.appendChild(button);
+    });
 
-        // Metadata
-        sections.push('\n―――――――――――――――――――');
-        sections.push(`🕒 Created: ${formatDateTime(note.created)}`);
-
-        return sections.join('\n');
-    }
-
-    function copyToClipboardFallback(text) {
-        navigator.clipboard.writeText(text).then(() => {
-            showToast('📋 Note copied to clipboard!');
-        }).catch(() => {
-            alert('Could not copy text. Please manually select and copy.');
+    // Toggle dropdown
+    dropBtn.onclick = (e) => {
+        e.stopPropagation();
+        // Close other dropdowns first
+        document.querySelectorAll('.note-dropdown-content.show').forEach(dropdown => {
+            if (dropdown !== dropdownContent) {
+                dropdown.classList.remove('show');
+            }
         });
-    }
+        dropdownContent.classList.toggle('show');
+    };
 
-    // Add this utility function
-    function showToast(message) {
-        const toast = document.createElement('div');
-        toast.textContent = message;
-        toast.style.position = 'fixed';
-        toast.style.bottom = '20px';
-        toast.style.left = '50%';
-        toast.style.transform = 'translateX(-50%)';
-        toast.style.background = '#80cbc4';
-        toast.style.color = '#263238';
-        toast.style.padding = '12px 20px';
-        toast.style.borderRadius = '25px';
-        toast.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
-        document.body.appendChild(toast);
+    dropdownContainer.appendChild(dropBtn);
+    dropdownContainer.appendChild(dropdownContent);
+    header.appendChild(dropdownContainer);
 
-        setTimeout(() => toast.remove(), 2000);
-    }
+    noteEl.appendChild(header);
+    noteEl.appendChild(contentEl);
 
     // Editing functions
     function enableEditTitle(titleElement, note, folder) {
@@ -500,6 +420,7 @@ function createNoteElement(note, folder) {
         };
         titleElement.addEventListener('blur', onBlur);
     }
+
     function enableEditContent(contentElement, note, folder) {
         contentElement.contentEditable = 'true';
         contentElement.focus();
@@ -515,79 +436,102 @@ function createNoteElement(note, folder) {
         contentElement.addEventListener('blur', onBlur);
     }
 
-    // Add dropdown menu
-    const dropdownContainer = document.createElement('div');
-    dropdownContainer.className = 'note-dropdown';
-
-    const dropBtn = document.createElement('button');
-    dropBtn.className = 'note-dropbtn';
-    dropBtn.innerHTML = '⋮';
-    dropBtn.setAttribute('aria-label', 'Note options');
-
-    const dropdownContent = document.createElement('div');
-    dropdownContent.className = 'note-dropdown-content';
-
-    // Dropdown items
-    const menuItems = [
-        {
-            text: 'Expand',
-            action: () => showExpandedNote(note)
-        },
-        { text: 'Share', action: () => shareNote(note) }, // Add this line
-        { text: 'Change color', action: () => colorInput.click() },
-        { text: 'Delete', action: () => noteDelBtn.click() },
-    ];
-
-    menuItems.forEach(item => {
-        const button = document.createElement('button');
-        button.textContent = item.text;
-        button.onclick = (e) => {
-            e.stopPropagation();
-            item.action();
-            dropdownContent.classList.remove('show');
-        };
-        dropdownContent.appendChild(button);
-    });
-
-    // Toggle dropdown
-    dropBtn.onclick = (e) => {
-        e.stopPropagation();
-        dropdownContent.classList.toggle('show');
-    };
-
-    dropdownContainer.appendChild(dropBtn);
-    dropdownContainer.appendChild(dropdownContent);
-    header.appendChild(dropdownContainer);
-
-    // Close dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-        if (!dropdownContainer.contains(e.target)) {
-            dropdownContent.classList.remove('show');
-        }
-    });
-
     return noteEl;
 }
 
-// In new note creation:
-// Update new note creation
-const newNote = {
-    id: generateId('note'),
-    title: 'Untitled Note',
-    content: '',
-    color: '#fffb82',
-    created: new Date().toISOString(),
-    liked: false,
-    todos: [],
-    timer: null,
-    bulletPoints: [],
-    featuresCollapsed: false,
-    float: false,          // Add this
-    floatPosition: null    // Add this
-};
+// Utility functions
+function shareNote(note) {
+    const formattedText = noteToText(note);
 
+    if (navigator.share) {
+        navigator.share({
+            title: `Note: ${note.title}`,
+            text: formattedText
+        }).catch(error => {
+            console.log('Sharing failed:', error);
+            copyToClipboardFallback(formattedText);
+        });
+    } else {
+        copyToClipboardFallback(formattedText);
+    }
+}
 
-// Convert RGB color to hex color string if needed
+function noteToText(note) {
+    const sections = [];
+    const safeTodos = Array.isArray(note.todos) ? note.todos : [];
+    const safeBulletPoints = Array.isArray(note.bulletPoints) ? note.bulletPoints : [];
+
+    sections.push(`📝 ${note.title}`);
+    sections.push('━'.repeat(note.title.length + 2));
+
+    if (note.content) sections.push(`\n${note.content}\n`);
+
+    if (safeTodos.length > 0) {
+        sections.push('\n✅ To-Dos:');
+        safeTodos.forEach(todo => {
+            sections.push(`▢ ${todo.done ? '✓' : ' '} ${todo.text || ''}`);
+        });
+    }
+
+    if (safeBulletPoints.length > 0) {
+        sections.push('\n🔹 Key Points:');
+        sections.push(...safeBulletPoints.map(bp => `• ${bp}`));
+    }
+
+    sections.push('\n―――――――――――――――――――');
+    sections.push(`🕒 Created: ${formatDateTime(note.created)}`);
+
+    return sections.join('\n');
+}
+
+function copyToClipboardFallback(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('📋 Note copied to clipboard!');
+    }).catch(() => {
+        // Fallback for browsers that don't support clipboard API
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            showToast('📋 Note copied to clipboard!');
+        } catch (err) {
+            showToast('❌ Could not copy to clipboard');
+        }
+        document.body.removeChild(textArea);
+    });
+}
+
+function showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+        }
+    }, 3000);
+}
+
+function duplicateNote(note, folder) {
+    const newNote = JSON.parse(JSON.stringify(note));
+    newNote.id = generateId('note');
+    newNote.title = note.title + ' (Copy)';
+    newNote.created = new Date().toISOString();
+    // Ensure all required properties exist
+    newNote.todos = Array.isArray(newNote.todos) ? newNote.todos : [];
+    newNote.bulletPoints = Array.isArray(newNote.bulletPoints) ? newNote.bulletPoints : [];
+    newNote.liked = false;
+    
+    folder.notes.push(newNote);
+    renderNotes();
+    saveData();
+    showToast('📄 Note duplicated!');
+}
+
 function rgbToHex(color) {
     if (color.startsWith('#')) return color;
     const rgb = color.match(/\d+/g);
@@ -598,68 +542,24 @@ function rgbToHex(color) {
     }).join('');
 }
 
-// Update the click handler
-
-// Add new folder
-newFolderBtn.onclick = () => {
-    const folderName = prompt('Enter new folder name:');
-    if (folderName && folderName.trim()) {
-        const newFolder = { id: generateId('folder'), name: folderName.trim(), notes: [] };
-        data.push(newFolder);
-        selectedFolderId = newFolder.id;
-        renderFolders();
-        renderNotes();
-        saveData();
-    }
-};
-
-// Add new note in selected folder
-addNoteBtn.onclick = () => {
-    if (!selectedFolderId) return;
-
-    // FIX: Clear the search input to ensure the new note is visible
-    searchInput.value = '';
-
-    const folder = data.find(f => f.id === selectedFolderId);
-    const newNote = {
-        id: generateId('note'),
-        title: 'Untitled Note',
-        content: '',
-        color: '#fffb82',
-        created: new Date().toISOString(),
-        liked: false,
-        todos: [],
-        timer: null,
-        bulletPoints: [],
-        featuresCollapsed: false,
-    };
-    folder.notes.push(newNote);
-    renderNotes(); // Now runs with an empty search query
-    saveData();
-};
-
-// Remove any duplicate showExpandedNote functions
-// Keep only ONE version:
 function showExpandedNote(note, folder) {
     const overlay = document.createElement('div');
     overlay.className = 'expanded-overlay';
-
-    const tempNote = JSON.parse(JSON.stringify(note));
 
     const content = document.createElement('div');
     content.className = 'expanded-content';
     content.innerHTML = `
         <div class="expanded-header">
-            <textarea class="editable-title" placeholder="Note title" style="height:20px">${tempNote.title}</textarea>
-            <button class="close-btn">&times;</button>
+            <textarea class="editable-title" placeholder="Note title">${note.title || ''}</textarea>
+            <button class="close-btn"><i class="fas fa-times"></i></button>
         </div>
         <div class="expanded-body">
-            <textarea class="auto-expand-content" placeholder="Start typing...">${formatContentForEditing(tempNote)}</textarea>
+            <textarea class="auto-expand-content" placeholder="Start typing...">${formatContentForEditing(note)}</textarea>
         </div>
         <div class="formatting-tools">
-            <button class="format-btn bullet" title="Add bullet point">•</button>
-            <button class="format-btn todo" title="Add todo item">☑</button>
-            <button class="format-btn bold" title="Bold text"><strong>B</strong></button>
+            <button class="format-btn bullet" title="Add bullet point"><i class="fas fa-list-ul"></i> Bullet</button>
+            <button class="format-btn todo" title="Add todo item"><i class="fas fa-check-square"></i> Todo</button>
+            <button class="format-btn bold" title="Bold text"><i class="fas fa-bold"></i> Bold</button>
         </div>
     `;
 
@@ -667,7 +567,7 @@ function showExpandedNote(note, folder) {
     const contentInput = content.querySelector('.auto-expand-content');
     const saveBtn = document.createElement('button');
     saveBtn.className = 'save-btn';
-    saveBtn.textContent = 'Save Changes';
+    saveBtn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
 
     // Auto-expanding textareas
     function autoExpand(field) {
@@ -682,7 +582,7 @@ function showExpandedNote(note, folder) {
 
     // Formatting handlers
     content.querySelector('.bullet').onclick = () => {
-        insertAtCursor(contentInput, '\n- ');
+        insertAtCursor(contentInput, '\n• ');
     };
     content.querySelector('.todo').onclick = () => {
         insertAtCursor(contentInput, '\n☐ ');
@@ -693,7 +593,7 @@ function showExpandedNote(note, folder) {
 
     // Save handler
     saveBtn.onclick = () => {
-        note.title = titleInput.value.trim();
+        note.title = titleInput.value.trim() || 'Untitled Note';
         note.content = contentInput.value;
         note.bulletPoints = parseBulletPoints(contentInput.value);
         note.todos = parseTodos(contentInput.value);
@@ -701,10 +601,13 @@ function showExpandedNote(note, folder) {
         saveData();
         renderNotes();
         overlay.remove();
+        showToast('💾 Note saved!');
     };
 
     // Close handlers
-    content.querySelector('.close-btn').onclick = () => overlay.remove();
+    content.querySelector('.close-btn').onclick = () => {
+        if (confirm('Discard changes?')) overlay.remove();
+    };
     overlay.onclick = (e) => {
         if (e.target === overlay && confirm('Discard changes?')) overlay.remove();
     };
@@ -712,11 +615,6 @@ function showExpandedNote(note, folder) {
     content.appendChild(saveBtn);
     overlay.appendChild(content);
     document.body.appendChild(overlay);
-}
-
-function handlePendingNotes() {
-    // This will be called automatically when notes arrive
-    // No need to load via chrome.runtime
 }
 
 function insertAtCursor(textarea, text) {
@@ -740,309 +638,46 @@ function wrapSelection(textarea, prefix, suffix) {
     textarea.selectionEnd = end + prefix.length;
 }
 
-function parseContent(html) {
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = html;
-
-    return Array.from(tempDiv.querySelectorAll('h3, p, li'))
-        .map(el => {
-            if (el.tagName === 'H3') return `## ${el.textContent}`;
-            if (el.tagName === 'LI') {
-                if (el.textContent.startsWith('☐ ')) return `- [ ] ${el.textContent.slice(2)}`;
-                return `- ${el.textContent}`;
-            }
-            return el.textContent;
-        })
-        .join('\n');
-}
-
-// Update parseBulletPoints function:
 function parseBulletPoints(content) {
     return content.split('\n')
-        .filter(line => line.match(/^[-•*]\s/))
-        .map(line => line.replace(/^[-•*]\s/, '').trim());
+        .filter(line => line.match(/^[•-]\s/))
+        .map(line => line.replace(/^[•-]\s/, '').trim());
 }
 
 function parseTodos(content) {
     return content.split('\n')
-        .filter(line => line.startsWith('- [ ]'))
+        .filter(line => line.startsWith('☐ '))
         .map(line => ({
-            text: line.replace('- [ ] ', '').trim(),
+            text: line.replace('☐ ', '').trim(),
             done: false
         }));
 }
 
 function formatContentForEditing(note) {
+    const safeTodos = Array.isArray(note.todos) ? note.todos : [];
+    const safeBulletPoints = Array.isArray(note.bulletPoints) ? note.bulletPoints : [];
+    
     return [
-        ...note.content.split('\n'),
-        ...note.todos.map(t => `- [ ] ${t.text}`),
-        ...note.bulletPoints.map(b => `- ${b}`)
-    ].join('\n');
+        note.content || '',
+        ...safeTodos.map(t => `☐ ${t.text || ''}`),
+        ...safeBulletPoints.map(b => `• ${b}`)
+    ].filter(part => part.trim() !== '').join('\n');
 }
 
-function addFormattingHandlers(container, contentEl) {
-    container.querySelector('.bullet').onclick = () => {
-        insertAtCursor('\n- ', contentEl);
-    };
-
-    container.querySelector('.todo').onclick = () => {
-        insertAtCursor('\n☐ ', contentEl);
-    };
-
-    container.querySelector('.bold').onclick = () => {
-        wrapSelection('**', '**', contentEl);
-    };
-}
-
-
-function formatEditableContent(note) {
-    return `
-        <div class="content-section">
-            ${note.content.split('\n').map(line => {
-        if (line.startsWith('## '))
-            return `<h3 contenteditable="true">${line.replace('## ', '')}</h3>`;
-        if (line.startsWith('- [ ] '))
-            return `<li class="todo-item" contenteditable="false">
-                              <input type="checkbox"> ${line.replace('- [ ] ', '')}
-                            </li>`;
-        if (line.startsWith('- '))
-            return `<li contenteditable="true">${line.replace('- ', '')}</li>`;
-        return `<p contenteditable="true">${line}</p>`;
-    }).join('')}
-        </div>
-        ${note.bulletPoints.length ? `
-        <div class="bullet-section">
-            <h4>Key Points</h4>
-            <ul>${note.bulletPoints.map(bp => `
-                <li contenteditable="true">${bp}</li>
-            `).join('')}</ul>
-        </div>` : ''}
-    `;
-}
-function handleTitleChange(note, titleEl) {
-    note.title = titleEl.textContent.trim();
-    // Update sticky note title in real-time
-    const stickyNote = document.querySelector(`[aria-label="Note titled ${note.title}"]`);
-    if (stickyNote) {
-        stickyNote.querySelector('.note-title').textContent = note.title;
-    }
-}
-
-function handleContentChange(note, event) {
-    const target = event.target;
-    if (target.matches('h3')) {
-        // Update headers
-        const lineIndex = Array.from(target.parentNode.children).indexOf(target);
-        note.content = note.content.split('\n').map((line, idx) =>
-            idx === lineIndex ? `## ${target.textContent}` : line
-        ).join('\n');
-    } else if (target.matches('li')) {
-        // Update bullet points
-        const list = target.closest('ul');
-        const index = Array.from(list.children).indexOf(target);
-        if (list.closest('.bullet-section')) {
-            note.bulletPoints[index] = target.textContent;
-        } else {
-            note.content = note.content.split('\n').map((line, idx) =>
-                line.startsWith('- ') && idx === index ? `- ${target.textContent}` : line
-            ).join('\n');
-        }
-    } else {
-        // Update regular paragraphs
-        const lineIndex = Array.from(target.parentNode.children).indexOf(target);
-        note.content = note.content.split('\n').map((line, idx) =>
-            idx === lineIndex ? target.textContent : line
-        ).join('\n');
-    }
-
-    // Update sticky note content in real-time
-    const stickyNote = document.querySelector(`[aria-label="Note titled ${note.title}"]`);
-    if (stickyNote) {
-        stickyNote.querySelector('.note-content').textContent = note.content;
-    }
-}
-
-function wrapSelection(prefix, suffix, element) {
-    const sel = window.getSelection();
-    if (!sel.rangeCount) return;
-
-    const range = sel.getRangeAt(0);
-    const text = range.extractContents();
-    const span = document.createElement('span');
-    span.textContent = `${prefix}${text.textContent}${suffix}`;
-    range.insertNode(span);
-}
-
-function formatNoteContent(note) {
-    return `
-        <div class="note-section">
-            ${note.content.split('\n').map(line => {
-        if (line.startsWith('## ')) return `<h3>${line.replace('## ', '')}</h3>`;
-        if (line.startsWith('- ')) return `<ul><li>${line.replace('- ', '')}</li></ul>`;
-        return `<p>${line}</p>`;
-    }).join('')}
-        </div>
-        ${note.bulletPoints.length ? `
-        <div class="bullet-section">
-            <h4>Key Points</h4>
-            <ul>${note.bulletPoints.map(bp => `<li>${bp}</li>`).join('')}</ul>
-        </div>` : ''}
-    `;
-}
-
+// Folder management functions
 function ensureMainFolder() {
-    const folderName = MAIN_FOLDER_NAME;
-    let folder = data.find(f => f.name === folderName);
+    let folder = data.find(f => f.name === MAIN_FOLDER_NAME);
     if (!folder) {
         folder = {
-            id: 'folder-main', // Fixed ID to prevent deletion
-            name: folderName,
+            id: 'folder-main',
+            name: MAIN_FOLDER_NAME,
             notes: [],
             isMainFolder: true
         };
-        data.unshift(folder); // Add at the beginning
+        data.unshift(folder);
         saveData();
     }
     return folder;
-}
-
-function createSaveButton(onSave) {
-    const saveBtn = document.createElement('button');
-    saveBtn.textContent = 'Save Changes';
-    saveBtn.className = 'save-btn';
-    saveBtn.onclick = onSave;
-    return saveBtn;
-}
-// Search functionality (filter notes)
-searchInput.oninput = () => {
-    renderNotes();
-};
-
-function duplicateNote(note, folder) {
-    const newNote = JSON.parse(JSON.stringify(note));
-    newNote.id = generateId('note');
-    newNote.created = new Date().toISOString();
-    folder.notes.push(newNote);
-    renderNotes();
-    saveData();
-}
-
-function toggleLike(note) {
-    note.liked = !note.liked;
-    renderNotes();
-    saveData();
-}
-
-// Initialize app - load data if saved
-function init() {
-    loadData();
-    ensureFloatingNotesFolder();
-    ensureMainFolder();
-    if (data.length > 0) {
-        selectedFolderId = data[0].id;
-    }
-    // chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    //     if (request.action === "processPendingNotes" && request.pendingNotes) {
-    //         request.pendingNotes.forEach(note => {
-    //             saveExtensionNote(note);
-    //         });
-    //         renderNotes();
-    //     }
-    // });
-    renderFolders();
-    renderNotes();
-    // loadPendingNotes(); // <- Add this line
-}
-
-
-
-// Handle messages from extension
-window.addEventListener('message', (event) => {
-    if (event.data.source === 'sticky-notes-extension' &&
-        event.data.action === 'SAVE_NOTE') {
-
-        const noteData = event.data.note;
-        const folder = ensureFloatingNotesFolder();
-
-        // Create/update note
-        const existingIndex = folder.notes.findIndex(n => n.id === noteData.id);
-        if (existingIndex >= 0) {
-            folder.notes[existingIndex] = {
-                ...folder.notes[existingIndex],
-                title: noteData.title,
-                content: noteData.content
-            };
-        } else {
-            folder.notes.push({
-                id: noteData.id,
-                title: noteData.title || 'Floating Note',
-                content: noteData.content || '',
-                color: '#fff9c4',
-                created: noteData.date || new Date().toISOString(),
-                isExtensionNote: true
-            });
-        }
-
-        saveData();
-
-        // Send response back to extension
-        event.source.postMessage({ success: true }, event.origin);
-
-        // Refresh UI
-        if (selectedFolderId === folder.id) {
-            renderNotes();
-        }
-    }
-});
-
-function saveExtensionNote(noteData) {
-    // Find or create Floating Notes folder
-    let folder = data.find(f => f.name === "Floating Notes");
-    if (!folder) {
-        folder.notes.push({
-            id: noteData.id,
-            title: noteData.title || 'Floating Note',
-            content: noteData.content || '',
-            // ADD THESE PROPERTIES:
-            todos: [],
-            bulletPoints: [],
-            liked: false,
-            timer: null,
-            featuresCollapsed: false,
-            color: '#fff9c4',
-            created: noteData.date || new Date().toISOString(),
-            isExtensionNote: true
-        });
-        data.push(folder);
-        saveData();
-        renderFolders();
-    }
-
-    const newNote = {
-        id: generateId('note'),
-        title: noteData.title || 'Floating Note',
-        content: noteData.content || '',
-        color: '#fffb82',
-        created: new Date().toISOString(),
-        liked: false,
-        todos: [],
-        timer: null,
-        bulletPoints: [],
-        featuresCollapsed: false,
-        float: false,
-        floatPosition: null,
-        isExtensionNote: true
-    };
-
-    folder.notes.push(newNote);
-    saveData();
-
-    // Switch to floating notes folder
-    selectedFolderId = folder.id;
-    renderFolders();
-    renderNotes();
-
-    showToast('Floating note saved!');
 }
 
 function ensureFloatingNotesFolder() {
@@ -1056,64 +691,149 @@ function ensureFloatingNotesFolder() {
         };
         data.push(folder);
         saveData();
-        renderFolders(); // Add this to update UI
+        renderFolders();
     }
     return folder;
 }
 
+// Extension message handling
+window.addEventListener('message', (event) => {
+    try {
+        if (!event.data || event.data.source !== 'sticky-notes-extension') return;
 
+        if (event.data.action === 'SAVE_NOTE') {
+            const noteData = event.data.note;
+            const folder = ensureFloatingNotesFolder();
 
-function saveExtensionNote(noteData) {
-    const folder = ensureFloatingNotesFolder();
-    const existingIndex = folder.notes.findIndex(n => n.id === noteData.id);
+            console.log('Saving extension note:', noteData);
 
-    if (existingIndex >= 0) {
-        // Update existing note
-        folder.notes[existingIndex] = {
-            ...folder.notes[existingIndex],
-            title: noteData.title,
-            content: noteData.content,
-            created: noteData.date || new Date().toISOString()
+            const existingIndex = folder.notes.findIndex(n => n.id === noteData.id);
+            
+            const noteToSave = {
+                id: noteData.id,
+                title: noteData.title || 'Floating Note',
+                content: noteData.content || '',
+                color: noteData.color || '#fff9c4',
+                created: noteData.date || new Date().toISOString(),
+                isExtensionNote: true,
+                todos: [],
+                bulletPoints: [],
+                liked: false,
+                timer: null,
+                featuresCollapsed: false
+            };
+
+            if (existingIndex >= 0) {
+                // Update existing note
+                folder.notes[existingIndex] = {
+                    ...folder.notes[existingIndex],
+                    ...noteToSave
+                };
+            } else {
+                // Add new note
+                folder.notes.push(noteToSave);
+            }
+
+            saveData();
+            console.log('Note saved successfully');
+
+            // Refresh UI if viewing this folder
+            if (selectedFolderId === folder.id) {
+                renderNotes();
+            }
+
+            // Send success response back to extension
+            event.source.postMessage({
+                success: true,
+                message: 'Note saved successfully'
+            }, event.origin);
+
+            // Update UI and show notification
+            selectedFolderId = folder.id;
+            renderFolders();
+            renderNotes();
+
+            showToast(`💾 Saved floating note: "${noteData.title}"!`);
+        }
+    } catch (error) {
+        console.error('Error processing extension message:', error);
+        event.source.postMessage({
+            success: false,
+            error: error.message
+        }, event.origin);
+    }
+});
+
+// Event handlers
+newFolderBtn.onclick = () => {
+    const folderName = prompt('Enter new folder name:');
+    if (folderName && folderName.trim()) {
+        const newFolder = { 
+            id: generateId('folder'), 
+            name: folderName.trim(), 
+            notes: [] 
         };
-    } else {
-        // Create new note with required properties
-        folder.notes.push({
-            id: noteData.id,
-            title: noteData.title || 'Floating Note',
-            content: noteData.content || '',
-            color: '#fff9c4',
-            created: noteData.date || new Date().toISOString(),
-            isExtensionNote: true,
-            todos: [],
-            bulletPoints: [],
-            liked: false,
-            timer: null,
-            featuresCollapsed: false
+        data.push(newFolder);
+        selectedFolderId = newFolder.id;
+        renderFolders();
+        renderNotes();
+        saveData();
+        showToast(`📁 Created folder: "${folderName.trim()}"!`);
+    }
+};
+
+addNoteBtn.onclick = () => {
+    if (!selectedFolderId) return;
+
+    searchInput.value = '';
+
+    const folder = data.find(f => f.id === selectedFolderId);
+    const newNote = {
+        id: generateId('note'),
+        title: 'Untitled Note',
+        content: '',
+        color: '#fffb82',
+        created: new Date().toISOString(),
+        liked: false,
+        todos: [],
+        bulletPoints: [],
+        timer: null,
+        featuresCollapsed: false
+    };
+    folder.notes.push(newNote);
+    renderNotes();
+    saveData();
+    showToast('📝 New note created!');
+};
+
+searchInput.oninput = () => {
+    renderNotes();
+};
+
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.note-dropdown')) {
+        document.querySelectorAll('.note-dropdown-content.show').forEach(dropdown => {
+            dropdown.classList.remove('show');
         });
     }
+});
 
-    saveData();
-    // Force UI refresh
-    selectedFolderId = folder.id;
+// Initialize app
+function init() {
+    loadData();
+    ensureMainFolder();
+    ensureFloatingNotesFolder();
+    
+    if (data.length > 0) {
+        selectedFolderId = data[0].id;
+    }
+    
     renderFolders();
     renderNotes();
-
-    return true;
+    
+    console.log('Sticky Notes app initialized');
 }
-window.onload = init;
-// setTimeout(loadPendingNotes, 1000); // Give UI time to initialize
 
-
-// This map fucntion is not working properly
-
-// ...note.todos.map(t => `☐ ${t.text}`),
-//         ...note.bulletPoints.map(b => `• ${b}`)
-
-// that's why error is occuring. Fix this error
-
-// Uncaught TypeError: Cannot read properties of undefined (reading 'map')
-//     at createNoteElement (app.js:377:23)
-//     at app.js:247:40
-//     at Array.forEach (<anonymous>)
-//     at renderNotes (app.js:242:23)
-//     at init (app.js:925:5)
+// Start the app when page loads
+window.addEventListener('load', init);
