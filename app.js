@@ -109,7 +109,7 @@ function renderFolders() {
         div.appendChild(folderNameSpan);
 
         // Delete button for folder (only if more than 1 folder and not Main folder)
-        const canDelete = data.length > 1 && !folder.isMainFolder;
+        const canDelete = data.length > 1 && !folder.isMainFolder && !folder.isExtensionFolder;
         if (canDelete) {
             const delBtn = document.createElement('button');
             delBtn.className = 'folder-delete-btn';
