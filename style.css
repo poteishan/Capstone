@@ -442,7 +442,7 @@ body {
 }
 
 .note-content[contenteditable="true"] {
-    width:330px;
+    width: none;
     border: 2px dashed var(--primary-color);
     border-radius: var(--border-radius-sm);
     padding: 12px;
@@ -481,6 +481,7 @@ body {
 }
 
 .note-dropdown-content {
+    height: 150px;
     overflow-y: scroll;
     display: none;
     position: absolute;
@@ -860,6 +861,9 @@ body {
     .formatting-tools {
         justify-content: center;
     }
+    .note-dropdown-content{
+        overflow-y: scroll;
+    }
 }
 
 @media (max-width: 480px) {
@@ -878,6 +882,10 @@ body {
 
     .note-content {
         font-size: 0.9rem;
+    }
+    
+    .note-dropdown-content{
+        overflow-y: scroll;
     }
 
     .expanded-content {
