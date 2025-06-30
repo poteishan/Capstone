@@ -481,7 +481,7 @@ body {
 }
 
 .note-dropdown-content {
-    overflow-y: auto;
+    overflow-y: scroll;
     display: none;
     position: absolute;
     right: 0;
