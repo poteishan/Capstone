@@ -330,9 +330,25 @@ function createNoteElement(note, folder) {
     colorInput.className = 'color-picker';
     colorInput.title = 'Change note color';
     colorInput.value = rgbToHex(note.color || '#fffb82');
+
     colorInput.oninput = (e) => {
-        note.color = e.target.value;
-        noteEl.style.backgroundColor = note.color;
+        // Preserve existing transparency level
+        const currentAlpha = note.color.includes('rgba') ?
+            note.color.split(',')[3].replace(/[^0-9.]/g, '') || '0.15' :
+            '0.15'; // Default glass alpha
+
+        // Convert hex to RGBA for glass effect
+        const hex = e.target.value;
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+
+        note.color = `rgba(${r}, ${g}, ${b}, ${currentAlpha})`;
+        noteEl.style.backgroundColor = note.color || 'rgba(255, 251, 130, 0.15)';
+        noteEl.style.backdropFilter = 'blur(10px)';
+        noteEl.style.border = '1px solid rgba(255, 255, 255, 0.2)';
+        noteEl.style.borderRadius = '12px';
+        noteEl.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.1)';
         saveData();
     };
 
@@ -549,11 +565,15 @@ function duplicateNote(note, folder) {
 
 function rgbToHex(color) {
     if (color.startsWith('#')) return color;
-    const rgb = color.match(/\d+/g);
-    if (!rgb) return '#fffb82';
-    return '#' + rgb.slice(0, 3).map(x => {
-        const hex = parseInt(x).toString(16);
-        return hex.length === 1 ? '0' + hex : hex;
+
+    // Improved regex to handle all CSS color formats
+    const rgbaMatch = color.match(/(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(\s*,\s*[\d.]+)?/);
+    if (!rgbaMatch) return '#fffb82'; // Glass-friendly default
+
+    // Convert to hex with proper zero-padding
+    return '#' + rgbaMatch.slice(1, 4).map(x => {
+        const val = Math.min(255, Math.max(0, parseInt(x)));
+        return val.toString(16).padStart(2, '0');
     }).join('');
 }
 
