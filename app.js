@@ -249,11 +249,11 @@ function createNoteElement(note, folder) {
         noteEl.appendChild(ribbon);
     }
 
-    // Note header
+    // Create main header container
     const header = document.createElement('div');
-    header.className = 'note-header';
+    header.className = 'header';
 
-    // Title
+    // Note title
     const titleEl = document.createElement('div');
     titleEl.className = 'note-title';
     titleEl.textContent = note.title || 'Untitled Note';
@@ -269,11 +269,19 @@ function createNoteElement(note, folder) {
         }
     };
 
+    // Create secondary header (flex container)
+    const header2 = document.createElement('div');
+    header2.className = 'header2';
+
     // Date created
     const createdEl = document.createElement('div');
-    createdEl.className = 'note-created';
+    createdEl.className = 'date created';
     createdEl.innerHTML = `<i class="far fa-clock"></i> ${formatDateTime(note.created)}`;
 
+    // Like button container
+    const likeBtnContainer = document.createElement('div');
+    likeBtnContainer.className = 'likebtn';
+    
     // Like button
     const likeBtn = document.createElement('button');
     likeBtn.className = 'like-btn';
@@ -287,32 +295,13 @@ function createNoteElement(note, folder) {
         likeBtn.title = note.liked ? 'Unlike note' : 'Like note';
         saveData();
     };
+    likeBtnContainer.appendChild(likeBtn);
 
-    header.appendChild(titleEl);
-    header.appendChild(createdEl);
-    header.appendChild(likeBtn);
-
-    // Content area (editable)
-    const contentEl = document.createElement('div');
-    contentEl.className = 'note-content';
-    contentEl.textContent = contentParts.join('\n');
-    contentEl.tabIndex = 0;
-    contentEl.setAttribute('role', 'textbox');
-    contentEl.setAttribute('aria-multiline', 'true');
-    contentEl.setAttribute('aria-label', 'Note content, click to edit');
-    contentEl.onclick = () => enableEditContent(contentEl, note, folder);
-    contentEl.oninput = () => {
-        note.content = contentEl.textContent;
-        saveData();
-    };
-    contentEl.onkeydown = (e) => {
-        if (e.key === 'Tab') {
-            e.preventDefault();
-            document.execCommand('insertText', false, '  ');
-        }
-    };
-
-    // Add dropdown menu
+    // Options container
+    const optionsContainer = document.createElement('div');
+    optionsContainer.className = 'options';
+    
+    // Dropdown menu
     const dropdownContainer = document.createElement('div');
     dropdownContainer.className = 'note-dropdown';
 
@@ -398,9 +387,36 @@ function createNoteElement(note, folder) {
 
     dropdownContainer.appendChild(dropBtn);
     dropdownContainer.appendChild(dropdownContent);
-    header.appendChild(dropdownContainer);
+    optionsContainer.appendChild(dropdownContainer);
 
+    // Build header structure
+    header.appendChild(titleEl);
+    header2.appendChild(createdEl);
+    header2.appendChild(likeBtnContainer);
+    header.appendChild(optionsContainer);
     noteEl.appendChild(header);
+    noteEl.appendChild(header2);
+
+    // Content area (editable)
+    const contentEl = document.createElement('div');
+    contentEl.className = 'note-content';
+    contentEl.textContent = contentParts.join('\n');
+    contentEl.tabIndex = 0;
+    contentEl.setAttribute('role', 'textbox');
+    contentEl.setAttribute('aria-multiline', 'true');
+    contentEl.setAttribute('aria-label', 'Note content, click to edit');
+    contentEl.onclick = () => enableEditContent(contentEl, note, folder);
+    contentEl.oninput = () => {
+        note.content = contentEl.textContent;
+        saveData();
+    };
+    contentEl.onkeydown = (e) => {
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            document.execCommand('insertText', false, '  ');
+        }
+    };
+
     noteEl.appendChild(contentEl);
 
     // Editing functions
@@ -438,7 +454,6 @@ function createNoteElement(note, folder) {
 
     return noteEl;
 }
-
 // Utility functions
 function shareNote(note) {
     const formattedText = noteToText(note);
